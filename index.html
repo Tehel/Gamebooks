@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+	<meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width" />
+	<title>Training App</title>
+	<link rel="stylesheet" href="style.css" type="text/css" media="screen" />
+	<script src="phonegap.js" type="text/javascript" charset="utf-8"></script>
+	<script src="toolbox.js" type="text/javascript" charset="utf-8"></script>
+	<script language='Javascript'>
+		function start()
+		{
+			var uagent = navigator.userAgent;
+			alert( uagent );
+			
+			$( 'HelloBtn' ).addEventListener( 'touchstart', hello, false );
+			$( 'CountBtn' ).addEventListener( 'touchstart', count, false );
+		}
+
+		function hello()
+		{
+			trace( 'hello touch' );
+		}
+
+		function count()
+		{
+			var val = parseInt( $( 'countFld' ).textContent );
+			$( 'countFld' ).textContent = ( val + 1 ) % 5;
+		}
+	
+	</script>
+	<style type="text/css">
+	</style>
+</head>
+<body onload="start()">
+	<div id="title_bar">Phone<strong>Gap</strong> Training App</div>
+
+	<div id="welcome">
+		<div class="app_button" id="HelloBtn">Say Hello</div>
+		<div class="app_button" id="CountBtn">Count</div>
+	</div>
+	
+	<div id="countFld">0</div>
+
+</body>
+</html>
