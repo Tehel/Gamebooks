@@ -54,11 +54,9 @@
 		var defaultParagraphName = '*new*';
 		var defaultParagraphText = 'paragraph text goes here';
 
-		var plrep = '';
-		if( document.location.href.match( /looten\.net/ )
-		 || document.location.href.match( /localhost/ )
-		 || document.location.href.match( /192\.168\./ ))
-				plrep = '../cgi-bin/';
+		var libraryService = 'http://www.looten.net/cgi-bin/book.pl';
+		if( document.location.href.match( /gcnet/ )	libraryService = 'book.pl';
+		if( document.location.href.match( /(localhost|192\.168\.)/ ) libraryService = '../cgi-bin/';
 
 		// d? = 1-?,  t? = 0-?
 		var ruletypes = {
@@ -72,9 +70,9 @@
 				testLuckAgainst:'d6+d6',
 				testSkillAgainst:'d6+d6',
 				guiStats:'<tr><th>Skill</th><th>Stamina</th><th>Luck</th></tr><tr>'
-							+ '<td>{skill.current} <small>/ {skill.init}</small></td>'
-							+ '<td>{stamina.current} <small>/ {stamina.init}</small></td>'
-							+ '<td>{luck.current} <small>/ {luck.init}</small></td></tr>',
+							+ '<td>{skill.current}<small> / {skill.init}</small></td>'
+							+ '<td>{stamina.current}<small> / {stamina.init}</small></td>'
+							+ '<td>{luck.current}<small> / {luck.init}</small></td></tr>',
 				guiInventory:'<tr><th>Weapons</th><th>Backpack</th></tr>'
 						+ '<tr><td>{weapon}</td><td rowspan="3">{bag}</td></tr>'
 						+ '<tr><th>Pouch</th></tr>'
@@ -91,9 +89,9 @@
 				testLuckAgainst:'d6+d6',
 				testSkillAgainst:'d6+d6',
 				guiStats:'<tr><th>Skill</th><th>Stamina</th><th>Luck</th></tr><tr>'
-							+ '<td>{skill.current} <small>/ {skill.init}</small></td>'
-							+ '<td>{stamina.current} <small>/ {stamina.init}</small></td>'
-							+ '<td>{luck.current} <small>/ {luck.init}</small></td></tr>',
+							+ '<td>{skill.current}<small> / {skill.init}</small></td>'
+							+ '<td>{stamina.current}<small> / {stamina.init}</small></td>'
+							+ '<td>{luck.current}<small> / {luck.init}</small></td></tr>',
 				guiInventory:'<tr><th>Weapons</th><th>Backpack</th></tr>'
 						+ '<tr><td>{weapon}</td><td rowspan="3">{bag}</td></tr>'
 						+ '<tr><th>Pouch</th></tr>'
@@ -107,8 +105,8 @@
 				},
 				inv:{ power:5, weapon:2, bag:8, pouch:-1, special:-1 },		// 5 Kai disciplines, 2 weapons, 8 slots in bag, unlimited gold and special items
 				guiStats:'<tr><th>Skill</th><th>Stamina</th></tr><tr>'
-							+ '<td>{skill.current} <small>/ {skill.init}</small></td>'
-							+ '<td>{stamina.current} <small>/ {stamina.init}</small></td></tr>',
+							+ '<td>{skill.current}<small> / {skill.init}</small></td>'
+							+ '<td>{stamina.current}<small> / {stamina.init}</small></td></tr>',
 				guiInventory:'<tr><th>Disciplines</th><th>Backpack</th></tr>'
 						+ '<tr><td>{power}</td><td>{bag}</td></tr>'
 						+ '<tr><th>Weapons</th><th>Specials</th></tr>'
@@ -124,8 +122,8 @@
 				},
 				inv:{ power:5, weapon:2, bag:8, pouch:-1, special:-1 },		// 5 Dark disciplines, 2 weapons, 8 slots in bag, unlimited gold and special items
 				guiStats:'<tr><th>Skill</th><th>Stamina</th></tr><tr>'
-							+ '<td>{skill.current} <small>/ {skill.init}</small></td>'
-							+ '<td>{stamina.current} <small>/ {stamina.init}</small></td></tr>',
+							+ '<td>{skill.current}<small> / {skill.init}</small></td>'
+							+ '<td>{stamina.current}<small> / {stamina.init}</small></td></tr>',
 				guiInventory:'<tr><th>Disciplines</th><th>Backpack</th></tr>'
 						+ '<tr><td>{power}</td><td>{bag}</td></tr>'
 						+ '<tr><th>Weapons</th><th>Specials</th></tr>'
@@ -157,6 +155,7 @@
 		
 		function start()
 		{
+			trace( document.location.href );
 			var uagent = navigator.userAgent.toLowerCase();
 			isClientMobile = uagent.search( 'android' ) > -1
 						  || uagent.search( 'iphone' ) > -1
@@ -228,6 +227,9 @@
 						addSetupEvent( 'btnnewBook', 'click', newBook );
 						break;
 				case 'settings':
+						trace( 'href : '  + document.location.href );
+						trace( 'navigator : ' + toStr( navigator.useragent, true, 2 ) );
+
 						str = '<h2>Gamebooks settings</h2>';
 						str += '<input type="button" id="btnback" value="Back to local library">';
 						addSetupEvent( 'btnback', 'click', goToLocalBookList );
@@ -381,7 +383,7 @@
 		{
 			var req = createRequest();
 			var reqargs = { 'cmd': event.shiftKey ? 'booklistupdated' : 'booklist' };
-			sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ) );
+			sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 
 			var data = checkResp( req );
 			if( data )
@@ -407,7 +409,7 @@
 			req.finished = this.args.finished;
 			req.progress = this.args.progress;
 			var reqargs = { 'cmd':'getbook', 'bookname': title };
-			sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ), function(){
+			sendRequestPOST( req, libraryService, argsPOST( reqargs ), function(){
 				switch( this.readyState )
 				{
 					case 1:		break;
@@ -1125,7 +1127,7 @@
 			{
 				var req = createRequest();
 				var reqargs = { 'cmd':'book', 'act':'delete', 'bookid': bookCurrent.id };
-				sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ) );
+				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 				var data = checkResp( req );
 				if( data )
 					displayPage( 'booktitle' );
@@ -1141,7 +1143,7 @@
 			{
 				var req = createRequest();
 				var reqargs = { 'cmd':'book', 'act':'rename', 'bookname':book.title, 'newbookname':title };
-				sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ) );
+				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 				var data = checkResp( req );
 				if( data )
 					book.title = title;
@@ -1453,7 +1455,7 @@
 			{
 				var req = createRequest();
 				var reqargs = { 'cmd':'paragraph', 'act':'create', 'bookname':book.title, 'parname':defaultParagraphName, 'text':defaultParagraphText };
-				sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ) );
+				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 				var data = checkResp( req );
 				if( data )
 				{
@@ -1505,7 +1507,7 @@
 			{
 				var req = createRequest();
 				var reqargs = { 'cmd':'paragraph', 'act':'rename', 'bookname':book.title, 'parname':parname, 'newparname':newparname };
-				sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ) );
+				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 				var data = checkResp( req );
 				if( data )
 				{
