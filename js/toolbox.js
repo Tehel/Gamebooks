@@ -375,7 +375,7 @@ function toStr( obj, pretty, maxdepth, path, refs )
 {
 	var extarr = function( arr, arg ) { var newa = deepCopy( arr ); newa.push( arg ); return newa; }
 
-	if( maxdepth == undefined ) maxdepth = 1;
+	if( maxdepth == undefined ) maxdepth = 2;
 	if( path == undefined ) path = [];
 	if( refs == undefined ) refs = {};
 	if( refs[ obj ] ) return refs[ obj ];
