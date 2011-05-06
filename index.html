@@ -9,9 +9,6 @@
 	<script language='Javascript'>
 		function start()
 		{
-			var uagent = navigator.userAgent;
-			alert( uagent );
-			
 			$( 'HelloBtn' ).addEventListener( 'touchstart', hello, false );
 			$( 'CountBtn' ).addEventListener( 'touchstart', count, false );
 		}
@@ -26,7 +23,9 @@
 			var val = parseInt( $( 'countFld' ).textContent );
 			$( 'countFld' ).textContent = ( val + 1 ) % 5;
 		}
-	
+
+		
+		
 	</script>
 	<style type="text/css">
 	</style>
