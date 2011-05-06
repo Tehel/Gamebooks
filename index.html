@@ -10,20 +10,20 @@
 		function start()
 		{
 			// touchstart
-			$( 'HelloBtn' ).addEventListener( 'click', hello, false );
-			$( 'CountBtn' ).addEventListener( 'click', count, false );
-			$( 'ShowBtn' ).addEventListener( 'click', showobj, false );
+			$( 'HelloBtn' ).addEventListener( 'touchstart', hello, false );
+			$( 'CountBtn' ).addEventListener( 'touchstart', count, false );
+			$( 'CommandBtn' ).addEventListener( 'touchstart', command, false );
 		}
 
-		function showobj()
+		function command()
 		{
-			var objname = $( 'objname' ).value;
-			trace( toStr( window[ objname ], true ) );
+			var cmd = $( 'command' ).value;
+			trace( toStr( eval( cmd ), true ) );
 		}
 
 		function hello( event )
 		{
-			trace( 'hello ' );
+			trace( 'Hello' );
 			trace( toStr( event, true ) );
 		}
 
@@ -43,8 +43,8 @@
 	<div class="app_button" id="HelloBtn">Say Hello</div>
 	<div class="app_button" id="CountBtn">Count</div>
 	<div id="countFld">0</div>
-	<div class="app_button" id="ShowBtn">Show Obj</div>
-	<input type='text' id='objname' value='navigator'>
+	<div class="app_button" id="CommandBtn">Show Obj</div>
+	<input type='text' id='command'>
 	
 
 </body>
