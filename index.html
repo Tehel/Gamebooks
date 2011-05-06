@@ -9,36 +9,43 @@
 	<script language='Javascript'>
 		function start()
 		{
-			$( 'HelloBtn' ).addEventListener( 'touchstart', hello, false );
-			$( 'CountBtn' ).addEventListener( 'touchstart', count, false );
+			// touchstart
+			$( 'HelloBtn' ).addEventListener( 'click', hello, false );
+			$( 'CountBtn' ).addEventListener( 'click', count, false );
+			$( 'ShowBtn' ).addEventListener( 'click', showobj, false );
 		}
 
-		function hello()
+		function showobj()
 		{
-			trace( 'hello touch' );
+			var objname = $( 'objname' ).value;
+			trace( toStr( window[ objname ], true ) );
+		}
+
+		function hello( event )
+		{
+			trace( 'hello ' );
+			trace( toStr( event, true ) );
 		}
 
 		function count()
 		{
 			var val = parseInt( $( 'countFld' ).textContent );
-			$( 'countFld' ).textContent = ( val + 1 ) % 5;
+			$( 'countFld' ).textContent = ( val + 1 ) % 6;
 		}
-
-		
-		
+	
 	</script>
 	<style type="text/css">
 	</style>
 </head>
 <body onload="start()">
-	<div id="title_bar">Phone<strong>Gap</strong> Training App</div>
+	<div id="title_bar">Tehel's Training App</div>
 
-	<div id="welcome">
-		<div class="app_button" id="HelloBtn">Say Hello</div>
-		<div class="app_button" id="CountBtn">Count</div>
-	</div>
-	
+	<div class="app_button" id="HelloBtn">Say Hello</div>
+	<div class="app_button" id="CountBtn">Count</div>
 	<div id="countFld">0</div>
+	<div class="app_button" id="ShowBtn">Show Obj</div>
+	<input type='text' id='objname' value='navigator'>
+	
 
 </body>
 </html>

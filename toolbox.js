@@ -371,25 +371,52 @@ function deepCopy( obj )
 }
 
 // simple json-like serialization for trace dump (no handling of embedded ")
-function toStr( obj )
+function toStr( obj, pretty, maxdepth, path, refs )
 {
+	var extarr = function( arr, arg ) { var newa = deepCopy( arr ); newa.push( arg ); return newa; }
+
+	if( maxdepth == undefined ) maxdepth = 1;
+	if( path == undefined ) path = [];
+	if( refs == undefined ) refs = {};
+	if( refs[ obj ] ) return refs[ obj ];
+	if( path.length > maxdepth ) return '* too deep *';
+	refs[ obj ] = '*' + path.join('>') + '*';
+
+	var tabs = '';
+	for( var i=0; i<path.length; i++ ) tabs += '\t';
+
 	var str = '';
 	if( Object.prototype.toString.call( obj ) === '[object Array]')
 	{
 		var out = [];
 		for( var i = 0; i < obj.length; i++ )
-			out.push( toStr( obj[ i ] ) );
-		str += '[' + out.join( ',' ) + ']';
+			out.push( toStr( obj[ i ], pretty, maxdepth, extarr( path, i ), refs ) );
+		if( pretty )
+			str += '[\n\t' + tabs + out.join( ',\n\t' + tabs + '\t' ) + '\n' + tabs + ']';
+		else
+			str += '[' + out.join( ',' ) + ']';
 	}
-	if( typeof obj === 'object' )
+	else if( typeof obj == 'object' )
 	{
 		var out = []
 		for ( var i in obj )
-			out.push( '"' + i + '":' + toStr( obj[ i ] ) );
-		str += '{' + out.join( ',' ) + '}';
+			out.push( '"' + i + '":' + toStr( obj[ i ], pretty, maxdepth, extarr( path, i ), refs ) );
+		if( pretty )
+			str += '{\n\t' + tabs + out.join( ',\n\t' + tabs ) + '\n' + tabs + '}';
+		else
+			str += '{' + out.join( ',' ) + '}';
+	}
+	else if( typeof obj == 'function' )
+	{
+		str += '* function *';
+	}
+	else if( obj == undefined )
+	{
+		str += 'undefined';
 	}
 	else
-		str = obj.toString();
+		str += obj.toString();
+		
 	return str;
 }		
 
