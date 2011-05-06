@@ -55,8 +55,8 @@
 		var defaultParagraphText = 'paragraph text goes here';
 
 		var libraryService = 'http://www.looten.net/cgi-bin/book.pl';
-		if( document.location.href.match( /gcnet/ )	libraryService = 'book.pl';
-		if( document.location.href.match( /(localhost|192\.168\.)/ ) libraryService = '../cgi-bin/';
+		if( document.location.href.match( /gcnet/ ) )	libraryService = 'book.pl';
+		if( document.location.href.match( /(localhost|192\.168\.)/ ) ) libraryService = '../cgi-bin/';
 
 		// d? = 1-?,  t? = 0-?
 		var ruletypes = {
