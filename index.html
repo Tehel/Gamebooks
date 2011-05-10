@@ -46,6 +46,7 @@
 		var stateTmp = {};		// data cleared upon entering a new paragraph. Holds last roll, fight state, etc...
 
 		var isClientMobile = 0;
+		var clickEvent;			// will be 'touchstart' or 'click', depending of isClientMobile
 
 		var downloadProgressWidth = 200;
 		var inputPadding = 0;
@@ -151,14 +152,14 @@
 			guiLuck:'Luck'
 		}
 		var i18n = {};
-		
+
 		function start()
 		{
 			var uagent = navigator.userAgent.toLowerCase();
 			isClientMobile = uagent.search( 'android' ) > -1
 						  || uagent.search( 'iphone' ) > -1
 						  || uagent.search( 'ipod' ) > -1;
-			isClientMobile = 1;
+			clickEvent = isClientMobile ? 'touchstart' : 'click';
 			clientCheck();
 
 			// select IndexedDB if present, else use LocalStorage
@@ -204,13 +205,13 @@
 				case 'title':
 						updateTitleBar( 'Gamebooks' );
 						str += '<input type="button" value="See local library" id="btnlocalLibrary"> ';
-						addSetupEvent( 'btnlocalLibrary', 'click', goToLocalBookList );
+						addSetupEvent( 'btnlocalLibrary', clickEvent, goToLocalBookList );
 						break;
 
 				case 'settings':
 						updateTitleBar( 'Gamebooks : settings' );
 						str += '<input type="button" id="btnback" value="Back to local library">';
-						addSetupEvent( 'btnback', 'click', goToLocalBookList );
+						addSetupEvent( 'btnback', clickEvent, goToLocalBookList );
 
 						str += '<br><br><input type="checkbox" id="chk_onlineShowall"' + ( settings.onlineShowall ? ' checked="checked"' : '' ) + '> Show all online books';
 						addSetupEvent( 'chk_onlineShowall', 'change', function(){ settings.onlineShowall = this.checked; Storage.saveSettings( settings ); } );
@@ -225,17 +226,17 @@
 
 						str += '<br><br>';
 						str += '<input type="button" value="Reset settings" id="btnresetSettings">';
-						addSetupEvent( 'btnresetSettings', 'click', function(){ settings = settingsDefault; Storage.saveSettings( settings ); displayPage( 'settings' ); });
+						addSetupEvent( 'btnresetSettings', clickEvent, function(){ settings = settingsDefault; Storage.saveSettings( settings ); displayPage( 'settings' ); });
 						str += '<input type="button" value="Clear local content" id="btnclearAllLocal">';
-						addSetupEvent( 'btnclearAllLocal', 'click', function(){ Storage.clearAll( function(){ Storage.saveSettings( settings ); displayPage( 'settings' ); }); });
+						addSetupEvent( 'btnclearAllLocal', clickEvent, function(){ Storage.clearAll( function(){ Storage.saveSettings( settings ); displayPage( 'settings' ); }); });
 						break;
 
 				case 'localBookList':
 						updateTitleBar( 'Gamebooks : local books' );
 						str += '<input type="button" value="Get more books online" id="btngetOnlineBooklist"> ';
-						addSetupEvent( 'btngetOnlineBooklist', 'click', getOnlineBooklist );
+						addSetupEvent( 'btngetOnlineBooklist', clickEvent, getOnlineBooklist );
 						str += '<input type="button" value="Settings" id="btnsettings"> ';
-						addSetupEvent( 'btnsettings', 'click', goToPage, { page:'settings' } );
+						addSetupEvent( 'btnsettings', clickEvent, goToPage, { page:'settings' } );
 						var books = objKeys( localBooks );
 						if( books.length > 0 )
 						{
@@ -249,20 +250,20 @@
 								if( bookdata.collection ) str += bookdata.collection + ' / ' + bookdata.collectionNb + ' / ';
 								str += bookdata.author + '</small>';
 								str += '</td></tr>';
-								addSetupEvent( 'book_'+ i, 'click', selectBook, { title:title } );
+								addSetupEvent( 'book_'+ i, clickEvent, selectBook, { title:title } );
 							});
 							str += '</table>';
 						}
 						str += '<input type="button" value="Create book" id="btnnewBook"> ';
-						addSetupEvent( 'btnnewBook', 'click', newBook );
+						addSetupEvent( 'btnnewBook', clickEvent, newBook );
 						break;
 
 				case 'onlineBookList':
 						updateTitleBar( 'Gamebooks : online books' );
 						str += '<input type="button" id="btnback" value="Back to local library">';
-						addSetupEvent( 'btnback', 'click', goToLocalBookList );
+						addSetupEvent( 'btnback', clickEvent, goToLocalBookList );
 						//str += '<input type="button" id="btnshowall" value="' + ( settings.onlineShowall ? 'Only new' : 'Show all' ) + '">';
-						//addSetupEvent( 'btnshowall', 'click', function(){ settings.onlineShowall = !settings.onlineShowall; displayPage( 'onlineBookList' ); });
+						//addSetupEvent( 'btnshowall', clickEvent, function(){ settings.onlineShowall = !settings.onlineShowall; displayPage( 'onlineBookList' ); });
 
 						str += '<table id="booklist">';
 
@@ -281,10 +282,9 @@
 								if( !localBooks[ title ] )
 								{
 									str += '<br><span id="progress_' + i + '"></span>';
-									addSetupEvent( 'getbook_' + i, 'click', getBook, { title:title, id:i, progress:'progress_' + i, finished:function( progress ){
+									addSetupEvent( 'getbook_' + i, clickEvent, getBook, { title:title, id:i, progress:'progress_' + i, finished:function( progress ){
 										if( settings.onlineShowall )
 										{
-											progress.parentNode.removeEventListener( 'click', getBook, false );
 											progress.parentNode.className = 'alreadyhave';
 											progress.parentNode.removeChild( progress );
 										}
@@ -304,7 +304,7 @@
 				case 'booktitle':
 						updateTitleBar( bookCurrent.title );
 						str += '<input type="button" id="btnback" value="Back to local library">';
-						addSetupEvent( 'btnback', 'click', goToLocalBookList );
+						addSetupEvent( 'btnback', clickEvent, goToLocalBookList );
 
 						str += '<table id="booktitle">';
 						str += '<tr><td colspan="2" class="center"><strong>' + bookCurrent.title + '</strong>' + ( bookCurrent.firsttitle ? '<br><small>( ' + bookCurrent.firsttitle + ' )</small>' : '' ) + '</td></tr>';
@@ -319,30 +319,30 @@
 						str += '</table>';
 
 						str += '<input type="button" id="btnread" value="Read">';
-						addSetupEvent( 'btnread', 'click', goToPage, { page:'bookread' } );
+						addSetupEvent( 'btnread', clickEvent, goToPage, { page:'bookread' } );
 						str += '<input type="button" id="btnedit" value="Edit">';
-						addSetupEvent( 'btnedit', 'click', editBook );
+						addSetupEvent( 'btnedit', clickEvent, editBook );
 						str += '<input type="button" id="btnremove" value="Delete">';
-						addSetupEvent( 'btnremove', 'click', deleteBook );
+						addSetupEvent( 'btnremove', clickEvent, deleteBook );
 						str += '<input type="button" id="btnremovesave" value="Delete Save">';
-						addSetupEvent( 'btnremovesave', 'click', saveDelete );
+						addSetupEvent( 'btnremovesave', clickEvent, saveDelete );
 
 						// delete ONLINE version of the book, only show if the 'id' field is set (meaning there IS an online version)
 						if( bookCurrent.id )
 						{
 							str += '<input type="button" value="Delete Online" id="delonlinebook">';
-							addSetupEvent( 'delonlinebook', 'click', delOnlineBook );
+							addSetupEvent( 'delonlinebook', clickEvent, delOnlineBook );
 						}
 
 						if( true || bookCurrent.modified )	// !!! waiting for 'modified' field management
 						{
 							//str += '<br>';
 							//str += '<input type="button" id="btnupload" value="Upload">';
-							//addSetupEvent( 'btnupload', 'click', uploadBook );
+							//addSetupEvent( 'btnupload', clickEvent, uploadBook );
 							//str += '<input type="button" id="btnsolve" value="Solve">';
-							//addSetupEvent( 'btnsolve', 'click', solveBook );
+							//addSetupEvent( 'btnsolve', clickEvent, solveBook );
 							str += '<input type="button" id="btnorphans" value="Check">';
-							addSetupEvent( 'btnorphans', 'click', checkBook );
+							addSetupEvent( 'btnorphans', clickEvent, checkBook );
 						}
 						break;
 
@@ -354,7 +354,7 @@
 				case 'bookedit':
 						updateTitleBar( 'Gamebooks : ' + bookCurrent.title );
 						str += '<input type="button" id="btnback" value="Back to book details">';
-						addSetupEvent( 'btnback', 'click', goToPage, { page:'booktitle' } );
+						addSetupEvent( 'btnback', clickEvent, goToPage, { page:'booktitle' } );
 						str += '<table id="edit">';
 						str += '<tr><td class="bookparagraphs">Book properties<br>';
 						str += '<table id="bookprops">';
@@ -377,7 +377,7 @@
 
 			execSetups();
 		}
-		
+
 		function updateTitleBar( text )
 		{
 			$( 'title_bar' ).innerHTML = text;
@@ -413,6 +413,8 @@
 
 		function getBook()
 		{
+			this.removeEventListener( clickEvent, getBook, false );
+
 			$( this.args.progress ).innerHTML = '<img src="circleball.gif">';
 			var title = this.args.title;
 
@@ -487,7 +489,7 @@
 		{
 			// load rules (the book may modify them)
 			bookCurrent.rules = deepCopy( ruletypes[ bookCurrent.ruletype ] );
-		
+
 			// try to find a saved game. If not found, create a blank state.
 			Storage.loadState( bookCurrent.title, function( data ){
 				if( data )
@@ -505,7 +507,7 @@
 				refreshParRead();
 			});
 		}
-		
+
 		// Create the character, according to the rules
 		function initBookState()
 		{
@@ -515,13 +517,13 @@
 			stateCurrent = { paragraph:'intro', tags:{}, inv:{}, invsize:{}, stats:{} };
 
 			// get the {rules} block, to make rules changes
-			
+
 			// !!!
 			// - can add an inventory slot (powers for Lone Wolf or MORT)
 			// - can change inventory slot (powers for Lone Wolf sequels)
 			// - can add a stat type (Fear in Manoir)
 			// - can change stat display
-			
+
 			// rand the basic stats
 			for( var stat in bookCurrent.rules.stats )
 			{
@@ -551,12 +553,12 @@
 				displayPage( 'booktitle' );
 			});
 		}
-		
+
 		function saveDelete()
 		{
 			Storage.removeState( bookCurrent.title );
 		}
-		
+
 		function changeParRead( target )
 		{
 			// stack a copy of the current state, updating the paragraph id
@@ -611,18 +613,18 @@
 			var header = '<table id="header"><tr><td>';
 
 			header += '<input type="button" id="btnInv" value="Items">';
-			addSetupEvent( 'btnInv', 'click', toggleInventory );
+			addSetupEvent( 'btnInv', clickEvent, toggleInventory );
 
 			// Back button, only according to settings
 			if( settings.enableBack )
 			{
 				header += '<input type="button" id="btnbackPar" value="Back">';
-				addSetupEvent( 'btnbackPar', 'click', backParRead );
+				addSetupEvent( 'btnbackPar', clickEvent, backParRead );
 			}
 			header += '<input type="button" id="btnSave" value="Save">';
-			addSetupEvent( 'btnSave', 'click', saveRead );
+			addSetupEvent( 'btnSave', clickEvent, saveRead );
 			header += '<input type="button" id="btnQuit" value="Quit">';
-			addSetupEvent( 'btnQuit', 'click', goToPage, { page:'booktitle' } );
+			addSetupEvent( 'btnQuit', clickEvent, goToPage, { page:'booktitle' } );
 
 			header += '</td></tr><tr><td>';
 			header += '<table class="white" id="stats"></table>';
@@ -635,7 +637,7 @@
 			var text = bookCurrentText.text;
 			text = text.replace( /<[^>]+>/g, '<b>MARKUP !</b>' )
 			// remove all markup, just in case something got through to the storage
-			
+
 			var mediacount = 0;
 			var id = 0;
 
@@ -651,38 +653,38 @@
 				// Syntax is always:
 				// {type:text:condition: ... specifics ... }
 				// when the text is empty, it is an auto
-				
+
 				switch( type )
 				{
 					case 'link':	// ( text, condition, section_id ){link:rendez-vous au 34::34}
 									// - section_id can be 'back'
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, 'click', action_go, { target: els[2] } );
+									addSetupEvent( actionId, clickEvent, action_go, { target: els[2] } );
 									stateTmp.actions.push( { id:actionId, cond:els[1], style:'turnto' } );
 									id++;
 									break;
 					case 'luck':	// ( text )
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, 'click', action_luck );
+									addSetupEvent( actionId, clickEvent, action_luck );
 									stateTmp.actions.push( { id:actionId, cond:'!tmp.luckTest', style:'luck' } );
 									id++;
 									break;
 					case 'skill':	// ( text )
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, 'click', action_skill );
+									addSetupEvent( actionId, clickEvent, action_skill );
 									stateTmp.actions.push( { id:actionId, cond:'!tmp.skillTest', style:'skill' } );
 									id++;
 									break;
 					case 'roll':	// ( text, '', type )
 									// - type is a list of dices to roll, separated by ;  e.g., '6;6', '9'
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, 'click', action_roll, { type:els[2] } );
+									addSetupEvent( actionId, clickEvent, action_roll, { type:els[2] } );
 									stateTmp.actions.push( { id:actionId, cond:'!tmp.roll', style:'roll' } );
 									id++;
 									break;
 					case 'var':		// ( text, condition, path, action )
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, 'click', action_var, { path:els[2], act:els[3] } );
+									addSetupEvent( actionId, clickEvent, action_var, { path:els[2], act:els[3] } );
 									stateTmp.actions.push( { id:actionId, cond:els[1], style:'var' } );
 									id++;
 									break;
@@ -691,7 +693,7 @@
 									// - price_type is the name of another item, for exchanges
 									// - quantities are 1 by default
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, 'click', action_item, { item: els.slice(2) } );
+									addSetupEvent( actionId, clickEvent, action_item, { item: els.slice(2) } );
 									stateTmp.actions.push( { id:actionId, cond:els[1], style:'item' } );
 									id++;
 									break;
@@ -719,7 +721,7 @@
 			execSetups();
 
 			toggleInventory( false );
-			
+
 			updateStats();
 			updateInventory();
 			updateActions();		// This will update the class of the actions and setup the events
@@ -728,7 +730,7 @@
 		function runAutos()
 		{
 			// {type:text:condition: ... specifics ... }
-		
+
 			// run auto actions
 			var auto = bookCurrentText.auto;
 			if( auto && !stateTmp.autoDone )
@@ -817,7 +819,7 @@
 				if( items.length == 0 )
 					items.push( '&nbsp;' );
 				items.sort();
-				
+
 				inventory = inventory.replace( capt[0], items.join('<br>') );
 			}
 			$( 'inventory' ).innerHTML = inventory;
@@ -827,7 +829,7 @@
 		{
 			stateTmp.actions.forEach( function( action ){
 				var item = $( action.id );
-				
+
 				var active = false;
 
 				if( !item.disable )
@@ -852,7 +854,7 @@
 		function action_var()
 		{
 			if( !this.active ) return;
-			
+
 			var path = this.args.path.split( '.' );
 			var act = this.args.act;
 
@@ -868,7 +870,7 @@
 			if( path[0] == 'tmp' && vals[0] == 'inv' ) num = invGetItemNb( vals.splice( 1, 2 ) );
 			// auto-create receptor for stateTmp values
 			if( path[0] == 'tmp' && !stateTmp[ path[1] ] ) stateTmp[ path[1] ] = 0;
-			
+
 			switch( prf )
 			{
 				case '+':	if( path[0] == 'tmp' )			stateTmp[ path[1] ] += num;
@@ -1176,7 +1178,7 @@
 				}
 			}
 			if( invert ) result = !result;
-			
+
 			return result;
 		}
 
@@ -1236,7 +1238,7 @@
 		function solveBook()
 		{
 			mapBook( bookCurrent.title, function( map ){
-				var first = 'intro';
+				/*var first = 'intro';
 				var last = 0;
 				objKeys( map ).forEach( function(id){
 					var val = parseInt(id);
@@ -1244,7 +1246,9 @@
 				} );
 
 				// nodes has sectId = [ target1, target2, ...]
-				trace( 'last:' + last );
+				trace( 'last:' + last );*/
+
+				trace( JSON.stringify( map ) );
 			});
 		}
 
@@ -1258,7 +1262,7 @@
 				// links audit
 				if( map.orphans ) trace( 'Orphans:' + map.orphans.join(',') );
 				if( map.missing ) trace( 'Missing:\n\t' + objKeys( map.missing ).map( function( id ){ return id + ': ' + map.missing[ id ].join(','); } ).join('\n\t') );
-				
+
 				// tags audit
 				if( map.tag )
 				{
@@ -1277,7 +1281,7 @@
 					var itemnames = [];
 					for( var itemname in map.item ) itemnames.push( itemname );
 					itemnames.sort();
-					
+
 					itemnames.forEach( function( itemname ){
 						var item = map.item[ itemname ];
 
@@ -1290,16 +1294,21 @@
 			});
 		}
 
+//{type:text:condition:
+
 		// generate a functional representation of the book, with links, backlinks, tag and item references
 		function mapBook( title, cb )
 		{
 			Storage.serializeBook( title, false, function( book ){
 				var map = { text:{} };
-				var tagchange = new RegExp( '\\btag:(add|del):([^:}]+)' );
-				var tagtest = new RegExp( '\\b!?tag\\.([^:}\)\|*]+)' );
-				var itemchange = new RegExp( '\\bitem:(add|del):(\\w+):([^:}]+)' );
-				var itemtest = new RegExp( '\\b!?inv\\.([^:}\)\|*]+)' );
-				var links = new RegExp( '{link:[^:]+:(.+?)(:|})' );
+
+				var tagtest = new RegExp(  '\\btag\\.([^:}\)\|*]+)' );
+				var itemtest = new RegExp( '\\binv\\.([^:}\)\|*]+)' );
+
+				var tagchange = new RegExp(   '\\btag:[^:]*:[^:]*:(add|del):([^:}]+)' );
+				var itemchange = new RegExp( '\\bitem:[^:]*:[^:]*:(add|del):([^:}]+)' );
+
+				var links = new RegExp( '{link:[^:]+:([^:]*):(.+?)}' );
 
 				var add = function( id, sect, type, act, name ){
 					if( !sect[ type ] ) sect[ type ] = {};
@@ -1316,7 +1325,7 @@
 
 				for( var id in book.text )
 					map.text[ id ] = {};
-				
+
 				for( var id in book.text )
 				{
 					var debug = false;
@@ -1324,37 +1333,10 @@
 
 					if( !map.text[ id ] ) map.text[ id ] = {};
 					var sect = map.text[ id ];
-					
+
 					var capt;
 					var str = book.text[ id ].text;
 					if( debug ) trace( id + '\nBegin:\n' + str );
-
-					// search for links in text
-					while( capt = links.exec( str ) )
-					{
-						// remove text and target to avoid matching again, but leave condition if present
-						var target = capt[1];
-						str = str.replace( capt[0], '{link::' + capt[2] );	
-						if( !sect.links ) sect.links = [];
-						sect.links.push( target );
-						
-						// add this section to the 'from' list of target
-						if( map.text[ target ] )
-						{
-							if( !map.text[ target ].from ) map.text[ target ].from = [];
-							map.text[ target ].from.push( id );
-						}
-						else if( target != 'back' )
-						{
-							// target section isn't defined, add it to missing list, mentioning current section
-							if( !map.missing ) map.missing = {};
-							if( !map.missing[ target ] ) map.missing[ target ] = [];
-							map.missing[ target ].push( id );
-						}
-						
-						if( debug ) trace( '+ found link to:' + target );
-					}
-					if( debug ) trace( 'After looking for links:\n' + str );
 
 					// search for tag condition
 					while( capt = tagtest.exec( str ) )
@@ -1372,25 +1354,44 @@
 					}
 					if( debug ) trace( 'After looking for item test:\n' + str );
 
+					// search for links in text
+					while( capt = links.exec( str ) )
+					{
+						// remove text and target to avoid matching again, but leave condition if present
+						var target = capt[2];
+						str = str.replace( capt[0], '{link::' + capt[1] + ':0}' );
+						if( !sect.links ) sect.links = [];
+						sect.links.push( target );
+
+						// add this section to the 'from' list of target
+						if( map.text[ target ] )
+						{
+							if( !map.text[ target ].from ) map.text[ target ].from = [];
+							map.text[ target ].from.push( id );
+						}
+						else if( target != 'back' )
+						{
+							// target section isn't defined, add it to missing list, mentioning current section
+							if( !map.missing ) map.missing = {};
+							if( !map.missing[ target ] ) map.missing[ target ] = [];
+							map.missing[ target ].push( id );
+						}
+
+						if( debug ) trace( '+ found link to:' + target );
+					}
+					if( debug ) trace( 'After looking for links:\n' + str );
+
 					// search for item add/del
 					while( capt = itemchange.exec( str ) )
 					{
-						str = str.replace( capt[0], '' );
-						add( id, sect, 'item', capt[1], capt[2] + '.' + capt[3] );
+						str = str.replace( capt[0], 'a' );
+						add( id, sect, 'item', capt[1], capt[2] );
 					}
 
 					// search autos for tag and item action, and for conditions
 					if( book.text[ id ].auto )
 						book.text[ id ].auto.forEach( function( str ){
 							if( debug ) trace( 'Auto:Begin\n' + str );
-
-							// search for tag change
-							if( capt = tagchange.exec( str ) )
-								add( id, sect, 'tag', capt[1], capt[2] );
-
-							// search for item change
-							if( capt = itemchange.exec( str ) )
-								add( id, sect, 'item', capt[1], capt[2] + '.' + capt[3] );
 
 							// search for tag condition
 							while( capt = tagtest.exec( str ) )
@@ -1407,9 +1408,18 @@
 								add( id, sect, 'item', 'test', capt[1] );
 							}
 							if( debug ) trace( 'After looking for item test:\n' + str );
+
+							// search for tag change
+							if( capt = tagchange.exec( str ) )
+								add( id, sect, 'tag', capt[1], capt[2] );
+
+							// search for item change
+							if( capt = itemchange.exec( str ) )
+								add( id, sect, 'item', capt[1], capt[2] );
+
 						});
 				}
-				
+
 				// check if we have orphans
 				for( var id in map.text )
 					if( !map.text[ id ].from && id != 'intro' )
@@ -1477,7 +1487,7 @@
 				parlist.sort();
 				parlist.forEach( function( par, i ){
 					str += '<li id="par_' + i + '">' + par + '</li>';
-					addSetupEvent( 'par_' + i, 'click', changeParEdit, { 'target':par } );
+					addSetupEvent( 'par_' + i, clickEvent, changeParEdit, { 'target':par } );
 				});
 				str += '</ul>';
 
@@ -1492,18 +1502,18 @@
 			var parname = states[0];
 
 			var str = '<p><input type="button" value="<< Back" id="btnbackPar">';
-			addSetupEvent( 'btnbackPar', 'click', backParEdit );
+			addSetupEvent( 'btnbackPar', clickEvent, backParEdit );
 			str += '<input type="button" value="Add new section" id="btnaddnewpar">';
-			addSetupEvent( 'btnaddnewpar', 'click', addNewPar );
+			addSetupEvent( 'btnaddnewpar', clickEvent, addNewPar );
 			str += '<input type="button" value="Delete section" id="btndelpar"></p>';
-			addSetupEvent( 'btndelpar', 'click', delPar );
+			addSetupEvent( 'btndelpar', clickEvent, delPar );
 
 			str += '<p>Section name: ' + addChangeable( parname, 20, 2, 1, renamePar ) + '</p>';
 			str += '<p><textarea rows="12" cols="80" id="par_text">' + bookCurrentText.text + '</textarea><br><input type="button" value="Save" id="submittext"></p>';
-			
+
 			// !!! display a list of links to the sections linked in the text
 
-			addSetupEvent( 'submittext', 'click', updateParText );
+			addSetupEvent( 'submittext', clickEvent, updateParText );
 
 			$( 'paragraph' ).innerHTML = str;
 			execSetups();
@@ -1761,7 +1771,7 @@
 		td#paragraph li { margin-top:3px; }
 
 		div#content { margin:2px; padding:0 }
-		div#content.mobile { width:310px; }
+		div#content.mobile { width:316px; }
 		div#text { margin:3px; text-align:justify; }
 
 		span.action { cursor:pointer; }
