@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <widget xmlns = "http://www.w3.org/ns/widgets" xmlns:gap = "http://phonegap.com/ns/1.0"
-	id = "com.tehel.start" version = "0.1.0">
+	id = "com.tehel.start" version = "0.2.0">
 
-	<name>PhoneGap: Tehel start</name>
+	<name>Gamebooks</name>
 
-	<description>
-		Very first attempt
-	</description>
+	<description>Gamebooks player</description>
 
-	<author href="http://www.looten.net" email="phonegap@looten.net">Thomas</author>
+	<author href="http://www.looten.net" email="phonegap@looten.net">Tehel</author>
 
 	<gap:platforms>
 		<gap:platform name="android" minVersion="2.1" />

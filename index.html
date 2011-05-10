@@ -4,7 +4,6 @@
 <head>
 	<META HTTP-EQUIV='Content-Type' CONTENT='text/html; charset=ISO-8859-1'>
 	<title>Gamebooks</title>
-	<link rel="stylesheet" href="style.css" type="text/css" media="screen" />
 	<script src="phonegap.js" type="text/javascript" charset="utf-8"></script>
 	<script language='Javascript' src='js/browserdetect.js'></script>
 	<script language='Javascript' src='js/toolbox.js'></script>
@@ -31,10 +30,10 @@
 		var bookCurrentTextList;
 		var bookCurrentMediaList;
 
-		// !!! Should be saved persistently
-		var settings = {
-			onlineShowall:true,
-			enableBack:true,
+		var settings;
+		var settingsDefault = {
+			onlineShowall:false,
+			enableBack:false,
 			neverHideText:false
 		};
 
@@ -48,17 +47,15 @@
 
 		var isClientMobile = 0;
 
-		var downloadProgressWidth = 150;
+		var downloadProgressWidth = 200;
 		var inputPadding = 0;
 
 		var defaultParagraphName = '*new*';
 		var defaultParagraphText = 'paragraph text goes here';
 
-		var plrep = '';
-		if( document.location.href.match( /looten\.net/ )
-		 || document.location.href.match( /localhost/ )
-		 || document.location.href.match( /192\.168\./ ))
-				plrep = '../cgi-bin/';
+		var libraryService = 'http://www.looten.net/cgi-bin/book.pl';
+		if( document.location.href.match( /gcnet/ ) )	libraryService = 'book.pl';
+		if( document.location.href.match( /(localhost|192\.168\.)/ ) ) libraryService = '../cgi-bin/';
 
 		// d? = 1-?,  t? = 0-?
 		var ruletypes = {
@@ -72,9 +69,9 @@
 				testLuckAgainst:'d6+d6',
 				testSkillAgainst:'d6+d6',
 				guiStats:'<tr><th>Skill</th><th>Stamina</th><th>Luck</th></tr><tr>'
-							+ '<td>{skill.current} <small>/ {skill.init}</small></td>'
-							+ '<td>{stamina.current} <small>/ {stamina.init}</small></td>'
-							+ '<td>{luck.current} <small>/ {luck.init}</small></td></tr>',
+							+ '<td>{skill.current}<small> / {skill.init}</small></td>'
+							+ '<td>{stamina.current}<small> / {stamina.init}</small></td>'
+							+ '<td>{luck.current}<small> / {luck.init}</small></td></tr>',
 				guiInventory:'<tr><th>Weapons</th><th>Backpack</th></tr>'
 						+ '<tr><td>{weapon}</td><td rowspan="3">{bag}</td></tr>'
 						+ '<tr><th>Pouch</th></tr>'
@@ -91,9 +88,9 @@
 				testLuckAgainst:'d6+d6',
 				testSkillAgainst:'d6+d6',
 				guiStats:'<tr><th>Skill</th><th>Stamina</th><th>Luck</th></tr><tr>'
-							+ '<td>{skill.current} <small>/ {skill.init}</small></td>'
-							+ '<td>{stamina.current} <small>/ {stamina.init}</small></td>'
-							+ '<td>{luck.current} <small>/ {luck.init}</small></td></tr>',
+							+ '<td>{skill.current}<small> / {skill.init}</small></td>'
+							+ '<td>{stamina.current}<small> / {stamina.init}</small></td>'
+							+ '<td>{luck.current}<small> / {luck.init}</small></td></tr>',
 				guiInventory:'<tr><th>Weapons</th><th>Backpack</th></tr>'
 						+ '<tr><td>{weapon}</td><td rowspan="3">{bag}</td></tr>'
 						+ '<tr><th>Pouch</th></tr>'
@@ -107,8 +104,8 @@
 				},
 				inv:{ power:5, weapon:2, bag:8, pouch:-1, special:-1 },		// 5 Kai disciplines, 2 weapons, 8 slots in bag, unlimited gold and special items
 				guiStats:'<tr><th>Skill</th><th>Stamina</th></tr><tr>'
-							+ '<td>{skill.current} <small>/ {skill.init}</small></td>'
-							+ '<td>{stamina.current} <small>/ {stamina.init}</small></td></tr>',
+							+ '<td>{skill.current}<small> / {skill.init}</small></td>'
+							+ '<td>{stamina.current}<small> / {stamina.init}</small></td></tr>',
 				guiInventory:'<tr><th>Disciplines</th><th>Backpack</th></tr>'
 						+ '<tr><td>{power}</td><td>{bag}</td></tr>'
 						+ '<tr><th>Weapons</th><th>Specials</th></tr>'
@@ -124,8 +121,8 @@
 				},
 				inv:{ power:5, weapon:2, bag:8, pouch:-1, special:-1 },		// 5 Dark disciplines, 2 weapons, 8 slots in bag, unlimited gold and special items
 				guiStats:'<tr><th>Skill</th><th>Stamina</th></tr><tr>'
-							+ '<td>{skill.current} <small>/ {skill.init}</small></td>'
-							+ '<td>{stamina.current} <small>/ {stamina.init}</small></td></tr>',
+							+ '<td>{skill.current}<small> / {skill.init}</small></td>'
+							+ '<td>{stamina.current}<small> / {stamina.init}</small></td></tr>',
 				guiInventory:'<tr><th>Disciplines</th><th>Backpack</th></tr>'
 						+ '<tr><td>{power}</td><td>{bag}</td></tr>'
 						+ '<tr><th>Weapons</th><th>Specials</th></tr>'
@@ -176,7 +173,16 @@
 				Storage = BookLs;
 			}
 			//trace( 'using ' + Storage.type );
-			Storage.initLocal( function(){ displayPage( 'title' ); } );
+
+			if( isClientMobile )
+				$( 'content' ).className = 'mobile';
+
+			Storage.initLocal( function(){
+				Storage.loadSettings( function( data ){
+					settings = data ? data : settingsDefault;
+					displayPage( 'title' );
+				});
+			});
 		}
 
 		function clientCheck()
@@ -196,13 +202,36 @@
 			switch( pagename )
 			{
 				case 'title':
-						str = '<h2>Gamebooks</h2>';
+						updateTitleBar( 'Gamebooks' );
 						str += '<input type="button" value="See local library" id="btnlocalLibrary"> ';
 						addSetupEvent( 'btnlocalLibrary', 'click', goToLocalBookList );
-
 						break;
+
+				case 'settings':
+						updateTitleBar( 'Gamebooks : settings' );
+						str += '<input type="button" id="btnback" value="Back to local library">';
+						addSetupEvent( 'btnback', 'click', goToLocalBookList );
+
+						str += '<br><br><input type="checkbox" id="chk_onlineShowall"' + ( settings.onlineShowall ? ' checked="checked"' : '' ) + '> Show all online books';
+						addSetupEvent( 'chk_onlineShowall', 'change', function(){ settings.onlineShowall = this.checked; Storage.saveSettings( settings ); } );
+						str += '<br><input type="checkbox" id="chk_enableBack"' + ( settings.enableBack ? ' checked="checked"' : '' ) + '> Enable going back in books';
+						addSetupEvent( 'chk_enableBack', 'change', function(){ settings.enableBack = this.checked; Storage.saveSettings( settings ); } );
+						str += '<br><input type="checkbox" id="chk_neverHideText"' + ( settings.neverHideText ? ' checked="checked"' : '' ) + '> Don\'t hide text when looking at inventory';
+						addSetupEvent( 'chk_neverHideText', 'change', function(){ settings.neverHideText = this.checked; Storage.saveSettings( settings ); } );
+
+						// more options
+						//	- "always test new updates before reading"
+						//	- "select color scheme"
+
+						str += '<br><br>';
+						str += '<input type="button" value="Reset settings" id="btnresetSettings">';
+						addSetupEvent( 'btnresetSettings', 'click', function(){ settings = settingsDefault; Storage.saveSettings( settings ); displayPage( 'settings' ); });
+						str += '<input type="button" value="Clear local content" id="btnclearAllLocal">';
+						addSetupEvent( 'btnclearAllLocal', 'click', function(){ Storage.clearAll( function(){ Storage.saveSettings( settings ); displayPage( 'settings' ); }); });
+						break;
+
 				case 'localBookList':
-						str = '<h2>Local library</h2>';
+						updateTitleBar( 'Gamebooks : local books' );
 						str += '<input type="button" value="Get more books online" id="btngetOnlineBooklist"> ';
 						addSetupEvent( 'btngetOnlineBooklist', 'click', getOnlineBooklist );
 						str += '<input type="button" value="Settings" id="btnsettings"> ';
@@ -212,7 +241,7 @@
 						{
 							books.sort( function( a,b ) { return cmpobj( localBooks[a], localBooks[b], [ 'collection','collectionNb','title' ] ); } );
 
-							str += '<table class="booklist">';
+							str += '<table id="booklist">';
 							books.forEach( function( title, i ){
 								var bookdata = localBooks[ title ];
 								str += '<tr><td id="book_'+ i + '">';
@@ -227,33 +256,15 @@
 						str += '<input type="button" value="Create book" id="btnnewBook"> ';
 						addSetupEvent( 'btnnewBook', 'click', newBook );
 						break;
-				case 'settings':
-						str = '<h2>Gamebooks settings</h2>';
-						str += '<input type="button" id="btnback" value="Back to local library">';
-						addSetupEvent( 'btnback', 'click', goToLocalBookList );
 
-						str += '<br><br><input type="checkbox" id="chk_onlineShowall"' + ( settings.onlineShowall ? ' checked="checked"' : '' ) + '> Show all online books';
-						addSetupEvent( 'chk_onlineShowall', 'change', function(){ settings.onlineShowall = this.checked } );
-						str += '<br><input type="checkbox" id="chk_enableBack"' + ( settings.enableBack ? ' checked="checked"' : '' ) + '> Enable going back in books';
-						addSetupEvent( 'chk_enableBack', 'change', function(){ settings.enableBack = this.checked } );
-						str += '<br><input type="checkbox" id="chk_neverHideText"' + ( settings.neverHideText ? ' checked="checked"' : '' ) + '> Don\'t hide text when looking at inventory';
-						addSetupEvent( 'chk_neverHideText', 'change', function(){ settings.neverHideText = this.checked } );
-
-						// more options
-						//	- "always test new updates before reading"
-						//	- "select color scheme"
-
-						str += '<br><br>';
-						str += '<input type="button" value="Clear all local content" id="btnclearAllLocal">';
-						addSetupEvent( 'btnclearAllLocal', 'click', clearAllLocal );
-						break;
 				case 'onlineBookList':
-						str = '<h2>Online library</h2>';
+						updateTitleBar( 'Gamebooks : online books' );
 						str += '<input type="button" id="btnback" value="Back to local library">';
 						addSetupEvent( 'btnback', 'click', goToLocalBookList );
-						str += '<input type="button" id="btnshowall" value="' + ( settings.onlineShowall ? 'Only new' : 'Show all' ) + '">';
-						addSetupEvent( 'btnshowall', 'click', function(){ settings.onlineShowall = !settings.onlineShowall; displayPage( 'onlineBookList' ); });
-						str += '<table class="booklist">';
+						//str += '<input type="button" id="btnshowall" value="' + ( settings.onlineShowall ? 'Only new' : 'Show all' ) + '">';
+						//addSetupEvent( 'btnshowall', 'click', function(){ settings.onlineShowall = !settings.onlineShowall; displayPage( 'onlineBookList' ); });
+
+						str += '<table id="booklist">';
 
 						var books = objKeys( onlineBooks );
 						books.sort( function( a,b ) { return cmpobj( onlineBooks[a], onlineBooks[b], [ 'collection', 'collectionNb', 'title' ] ); } );
@@ -278,34 +289,42 @@
 											progress.parentNode.removeChild( progress );
 										}
 										else
-											progress.parentNode.parentNode.innerHTML = '';
+										{
+											var tr = progress.parentNode.parentNode;
+											tr.parentNode.removeChild( tr );
+										}
 									} } );
 								}
-								str += '</td>';
-								str += '</tr>';
+								str += '</td></tr>';
 							}
 						});
 						str += '</table>';
 						break;
+
 				case 'booktitle':
-						str = '<h2>Book details</h2>';
+						updateTitleBar( bookCurrent.title );
 						str += '<input type="button" id="btnback" value="Back to local library">';
 						addSetupEvent( 'btnback', 'click', goToLocalBookList );
 
-						var title = bookCurrent.title;
-						str += '<h3>' + title + '</h3><dl>';
-						if( bookCurrent.collection )
-							str += '<dt>Collection<dt><dd>' + bookCurrent.collection + ' / ' + bookCurrent.collectionNb + '<dd>';
-						str += '<dt>Author<dt><dd>' + bookCurrent.author + '<dd>';
-						str += '</dl>';
+						str += '<table id="booktitle">';
+						str += '<tr><td colspan="2" class="center"><strong>' + bookCurrent.title + '</strong>' + ( bookCurrent.firsttitle ? '<br><small>( ' + bookCurrent.firsttitle + ' )</small>' : '' ) + '</td></tr>';
+						str += '<tr><td class="right">Author</td><td class="left">' + bookCurrent.author + '</td></tr>';
 
-						str += '<input type="button" id="btnread" value="Read"> ';
+						if( bookCurrent.collection )
+							str += '<tr><td class="right">Collection</td><td class="left">' + bookCurrent.collection + ' / ' + bookCurrent.collectionNb + '</td></tr>';
+						if( bookCurrent.date )
+							str += '<tr><td class="right">Date</td><td class="left">' + bookCurrent.date + '</td></tr>';
+						if( bookCurrent.translation )
+							str += '<tr><td class="right">Translation</td><td class="left">' + bookCurrent.translation + '</td></tr>';
+						str += '</table>';
+
+						str += '<input type="button" id="btnread" value="Read">';
 						addSetupEvent( 'btnread', 'click', goToPage, { page:'bookread' } );
-						str += '<input type="button" id="btnedit" value="Edit"> ';
+						str += '<input type="button" id="btnedit" value="Edit">';
 						addSetupEvent( 'btnedit', 'click', editBook );
-						str += '<input type="button" id="btnremove" value="Delete"> ';
+						str += '<input type="button" id="btnremove" value="Delete">';
 						addSetupEvent( 'btnremove', 'click', deleteBook );
-						str += '<input type="button" id="btnremovesave" value="Delete Save"> ';
+						str += '<input type="button" id="btnremovesave" value="Delete Save">';
 						addSetupEvent( 'btnremovesave', 'click', saveDelete );
 
 						// delete ONLINE version of the book, only show if the 'id' field is set (meaning there IS an online version)
@@ -317,17 +336,23 @@
 
 						if( true || bookCurrent.modified )	// !!! waiting for 'modified' field management
 						{
-							str += '<br>';
-							str += '<input type="button" id="btnupload" value="Upload"> ';
-							addSetupEvent( 'btnupload', 'click', uploadBook );
-							str += '<input type="button" id="btnsolve" value="Solve"> ';
-							addSetupEvent( 'btnsolve', 'click', solveBook );
-							str += '<input type="button" id="btnorphans" value="Check"> ';
+							//str += '<br>';
+							//str += '<input type="button" id="btnupload" value="Upload">';
+							//addSetupEvent( 'btnupload', 'click', uploadBook );
+							//str += '<input type="button" id="btnsolve" value="Solve">';
+							//addSetupEvent( 'btnsolve', 'click', solveBook );
+							str += '<input type="button" id="btnorphans" value="Check">';
 							addSetupEvent( 'btnorphans', 'click', checkBook );
 						}
 						break;
+
+				case 'bookread':
+						updateTitleBar( bookCurrent.title );
+						addSetupFiller( readBook );
+						break;
+
 				case 'bookedit':
-						str = '<h2>Book editing</h2>';
+						updateTitleBar( 'Gamebooks : ' + bookCurrent.title );
 						str += '<input type="button" id="btnback" value="Back to book details">';
 						addSetupEvent( 'btnback', 'click', goToPage, { page:'booktitle' } );
 						str += '<table id="edit">';
@@ -343,24 +368,19 @@
 						str += '<td rowspan="2" id="paragraph"></td></tr>';
 						str += '<tr><td id="parlist"></td></tr>';
 						str += '</table>';
-						break;
-				case 'bookread':
-						str = '<h3>' + bookCurrent.title + '</h3>';
-						str += '<div id="paragraph" class="' + ( isClientMobile ? 'mobile' : 'large' ) + '"></span>';
+
+						addSetupFiller( refreshParList );
+						addSetupFiller( refreshParEdit );
 						break;
 			}
 			$( 'content' ).innerHTML = str;
 
-			switch( pagename )
-			{
-				case 'bookedit':	refreshParList();
-									refreshParEdit();
-									break;
-				case 'bookread':	readBook();
-									break;
-				default:			break;
-			}
 			execSetups();
+		}
+		
+		function updateTitleBar( text )
+		{
+			$( 'title_bar' ).innerHTML = text;
 		}
 
 		function goToPage()
@@ -381,7 +401,7 @@
 		{
 			var req = createRequest();
 			var reqargs = { 'cmd': event.shiftKey ? 'booklistupdated' : 'booklist' };
-			sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ) );
+			sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 
 			var data = checkResp( req );
 			if( data )
@@ -389,11 +409,6 @@
 				onlineBooks = data.booklist;
 				displayPage( 'onlineBookList' );
 			}
-		}
-
-		function clearAllLocal()
-		{
-			Storage.clearAll( function(){ displayPage( 'settings' ) } );
 		}
 
 		function getBook()
@@ -407,7 +422,7 @@
 			req.finished = this.args.finished;
 			req.progress = this.args.progress;
 			var reqargs = { 'cmd':'getbook', 'bookname': title };
-			sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ), function(){
+			sendRequestPOST( req, libraryService, argsPOST( reqargs ), function(){
 				switch( this.readyState )
 				{
 					case 1:		break;
@@ -633,13 +648,17 @@
 				var type = els.shift();
 				var actionId = 'action_' + id;
 
+				// Syntax is always:
+				// {type:text:condition: ... specifics ... }
+				// when the text is empty, it is an auto
+				
 				switch( type )
 				{
-					case 'link':	// ( text, section_id, condition )
+					case 'link':	// ( text, condition, section_id ){link:rendez-vous au 34::34}
 									// - section_id can be 'back'
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, 'click', action_go, { target: els[1] } );
-									stateTmp.actions.push( { id:actionId, cond:els[2], style:'turnto' } );
+									addSetupEvent( actionId, 'click', action_go, { target: els[2] } );
+									stateTmp.actions.push( { id:actionId, cond:els[1], style:'turnto' } );
 									id++;
 									break;
 					case 'luck':	// ( text )
@@ -654,20 +673,26 @@
 									stateTmp.actions.push( { id:actionId, cond:'!tmp.skillTest', style:'skill' } );
 									id++;
 									break;
-					case 'roll':	// ( text, type )
+					case 'roll':	// ( text, '', type )
 									// - type is a list of dices to roll, separated by ;  e.g., '6;6', '9'
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, 'click', action_roll, { type:els[1] } );
+									addSetupEvent( actionId, 'click', action_roll, { type:els[2] } );
 									stateTmp.actions.push( { id:actionId, cond:'!tmp.roll', style:'roll' } );
 									id++;
 									break;
-					case 'item':	// ( action_type, slot, item_name, use_str, item_quantity, price_slot, price_type, price_quantity, many, use )
+					case 'var':		// ( text, condition, path, action )
+									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
+									addSetupEvent( actionId, 'click', action_var, { path:els[2], act:els[3] } );
+									stateTmp.actions.push( { id:actionId, cond:els[1], style:'var' } );
+									id++;
+									break;
+					case 'item':	// ( text, '', action_type, slot.item_name, use_str, item_quantity, price_slot.price_item, price_quantity, many, use )
 									// - action_type: add, del
 									// - price_type is the name of another item, for exchanges
 									// - quantities are 1 by default
-									repl = '<span id="' + actionId + '">' + els[2] + '</span>';
-									addSetupEvent( actionId, 'click', action_item, { item: els } );
-									stateTmp.actions.push( { id:actionId, style:'item' } );
+									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
+									addSetupEvent( actionId, 'click', action_item, { item: els.slice(2) } );
+									stateTmp.actions.push( { id:actionId, cond:els[1], style:'item' } );
 									id++;
 									break;
 					case 'img':		// ( image_name )
@@ -682,14 +707,14 @@
 					case 'b':		repl = '<b>' + els[0] + '</b>'; break;
 					case 'i':		repl = '<i>' + els[0] + '</i>'; break;
 					case 's':		repl = '<sup>' + els[0] + '</sup>'; break;
-					case 'br':		repl = '<br>'; break;
+					case 'br':		repl = '<br><br>'; break;
 					default:		repl = '<b>UNKOWN META</b>'; break;
 				}
 				text = text.replace( fullstr, repl );
 			}
 			window.scroll( 0, 0 );
 
-			$( 'paragraph' ).innerHTML = header + '<div id="text">' + text + '</div><br><br><br><br>';
+			$( 'content' ).innerHTML = header + '<div id="text">' + text + '</div><br><br>';
 
 			execSetups();
 
@@ -702,55 +727,37 @@
 
 		function runAutos()
 		{
+			// {type:text:condition: ... specifics ... }
+		
 			// run auto actions
 			var auto = bookCurrentText.auto;
 			if( auto && !stateTmp.autoDone )
 			{
 				auto.forEach( function( act ){
 					var els = act.split(':');
+					var type = els.shift();
+					var text = els.shift();	// text should always be empty
 					var cond = els.shift();
 					if( cond == '' || testCond( cond ) )
 					{
-						var type = els.shift();
 						switch( type )
 						{
-							case 'item':	// item:add:out:stilts:usestr	/ item:add:pouch:goldCoin::2	/ item:del:out:stilts
+							case 'item':	//{add:weapon.Bouclier}
+											// add:out.stilts:usestr	/ add:pouch.goldCoin::2	/ del:out:stilts
 											var act = els[0];
-											var slot = els[1];
-											var itemname = els[2];
-											var usestr = els[3];
-											var nb = parseInt( els[4] ) || 1;
-											if( act == 'add' )
-											{
-												if( !stateCurrent.inv[ slot ][ itemname ] )
-												{
-													stateCurrent.inv[ slot ][ itemname ] = { nb:0 };
-													if( usestr )
-														stateCurrent.inv[ slot ][ itemname ].use = usestr;
-												}
-												stateCurrent.inv[ slot ][ itemname ].nb += nb;
-											}
-											else if( act == 'del' )
-											{
-												if( stateCurrent.inv[ slot ][ itemname ] )
-												{
-													stateCurrent.inv[ slot ][ itemname ].nb -= nb;
-													if( stateCurrent.inv[ slot ][ itemname ].nb <= 0 )
-														delete stateCurrent.inv[ slot ][ itemname ];
-												}
-											}
-											else
-												trace( "Can't use tag action " + act );
+											var item = els[1].split( '.' );
+											var usestr = els[2];
+											var nb = parseInt( els[3] ) || 1;
+											if( act == 'add' )		invChangeItemNb( item, nb );
+											else if( act == 'del' )	invChangeItemNb( item, 0 - nb );
+											else					trace( "Can't use tag action " + act );
 											break;
-							case 'tag':		// tag:add:readManticoreScroll		/ tag:del:readManticoreScroll
+							case 'tag':		// add:readManticoreScroll	/ del:readManticoreScroll
 											var act = els[0];
 											var tagname = els[1];
-											if( act == 'add' )
-												stateCurrent.tags[ tagname ] = 1;
-											else if( act == 'del' )
-												delete stateCurrent.tags[ tagname ];
-											else
-												trace( "Can't use tag action " + act );
+											if( act == 'add' )		stateCurrent.tags[ tagname ] = 1;
+											else if( act == 'del' )	delete stateCurrent.tags[ tagname ];
+											else					trace( "Can't use tag action " + act );
 											break;
 							case 'stat':	// stat:skill:+2
 											var key = els[0];
@@ -770,6 +777,11 @@
 			}
 		}
 
+		function updateAlea()
+		{
+			$( 'alea' ).innerHTML = stateTmp.alea;
+		}
+
 		function updateStats()
 		{
 			var stats = bookCurrent.rules.guiStats;
@@ -780,7 +792,7 @@
 			}
 			$( 'stats' ).innerHTML = stats;
 		}
-		
+
 		function toggleInventory( force )
 		{
 			stateTmp.showInventory = typeof force == 'boolean' ? force : stateTmp.showInventory ? false : true;
@@ -799,7 +811,7 @@
 				var items = [];
 				for( var item in stateCurrent.inv[ slot ] )
 				{
-					var nb = stateCurrent.inv[ slot ][ item ].nb;
+					var nb = invGetItemNb( [ slot, item ] );
 					items.push( nb > 1 ? item + ' : ' + nb : item );
 				}
 				if( items.length == 0 )
@@ -836,26 +848,55 @@
 
 			changeParRead( this.args.target );
 		}
-/*
-		function action_statmod()
+
+		function action_var()
 		{
-			if( !this.active || !this.auto ) return;
+			if( !this.active ) return;
 			
-			// !!! does nothing other than update the stats for now
+			var path = this.args.path.split( '.' );
+			var act = this.args.act;
+
+			var prf = act.charAt(0);
+			var val = act.substr(1);
+			var vals = val.split( '.' );
+			var num = parseInt( val );
+			// accept the value 'max' for stat setting
+			if( path[0] == 'stat' && val == 'max' ) num = stateCurrent.stats[ path[1] ].init;
+			// stateTmp values can be modified using values from stats with +stat.skill, for example
+			if( path[0] == 'tmp' && vals[0] == 'stat' ) num = stateCurrent.stats[ vals[1] ].current;
+			// stateTmp values can be modified using quantities from inventory with +inv.pouch.pieces, for example
+			if( path[0] == 'tmp' && vals[0] == 'inv' ) num = invGetItemNb( vals.splice( 1, 2 ) );
+			// auto-create receptor for stateTmp values
+			if( path[0] == 'tmp' && !stateTmp[ path[1] ] ) stateTmp[ path[1] ] = 0;
+			
+			switch( prf )
+			{
+				case '+':	if( path[0] == 'tmp' )			stateTmp[ path[1] ] += num;
+							else if( path[0] == 'stat' )	stateCurrent.stats[ path[1] ].current += num;
+							break;
+				case '-':	if( path[0] == 'tmp' )			stateTmp[ path[1] ] -= num;
+							else if( path[0] == 'stat' )	stateCurrent.stats[ path[1] ].current -= num;
+							break;
+				case '=':	if( path[0] == 'tmp' )			stateTmp[ path[1] ] = num;
+							else if( path[0] == 'stat' )	stateCurrent.stats[ path[1] ].current = num;
+							break;
+			}
+			updateAlea();
 			updateStats();
 		}
-*/
+
 		// rolls the described dices
 		function action_roll()
 		{
 			if( !this.active ) return;
 
-			var res = roll( this.args.type );
+			var rollResult = roll( this.args.type );
 
-			stateTmp.roll = res[0];
-			$( 'alea' ).innerHTML = res[1];
+			stateTmp.roll = rollResult[0];
+			stateTmp.alea = rollResult[1];
 
 			// trigger an update of actions
+			updateAlea();
 			updateActions();
 		}
 
@@ -868,14 +909,15 @@
 			stateTmp.luckRoll = rollResult[0];
 			stateTmp.luckTest = stateTmp.luckRoll <= stateCurrent.stats.luck.current ? 1 : 0;
 
-			$( 'alea' ).innerHTML = rollResult[1];
-			//$( 'alea' ).innerHTML = rollResult[1] + ' / ' + stateCurrent.stats.luck.current + ' : ' + stateTmp.luckTest;
+			stateTmp.alea = rollResult[1];
+			//stateTmp.alea = rollResult[1] + ' / ' + stateCurrent.stats.luck.current + ' : ' + stateTmp.luckTest;
 
 			// decrease current luck, if > 0
 			if( stateCurrent.stats.luck.current > 0 )
 				stateCurrent.stats.luck.current--;
 
 			// trigger an update of actions
+			updateAlea();
 			updateStats();
 			updateActions();
 		}
@@ -889,27 +931,26 @@
 			stateTmp.skillRoll = rollResult[0];
 			stateTmp.skillTest = stateTmp.skillRoll <= stateCurrent.stats.skill.current ? 1 : 0;
 
-			$( 'alea' ).innerHTML = rollResult[1];
-			//$( 'alea' ).innerHTML = rollResult[1] + ' / ' + stateCurrent.stats.skill.current + ' : ' + stateTmp.skillTest;
+			stateTmp.alea = rollResult[1];
+			//stateTmp.alea = rollResult[1] + ' / ' + stateCurrent.stats.skill.current + ' : ' + stateTmp.skillTest;
 
 			// trigger an update of actions
+			updateAlea();
 			updateActions();
 		}
 
 		// takes or remove an item, maybe in exchange for something
-		// ( action_type, slot, item_name, use_str, item_quantity, price_slot, price_type, price_quantity, repeat )
+		// ( action_type, slot.item_name, use_str, item_quantity, price_slot.price_item, price_quantity, many, use )
 		function action_item()
 		{
 			if( !this.active && !this.auto ) return;
 
 			var args = this.args.item;
 			var type = args[0];
-			var slot = args[1];
-			var itemname = args[2];
-			var usestr = args[3];
-			var quantity = parseInt( args[4] ) || 1;
-			var price_slot = args[5];
-			var price_type = args[6];
+			var item = args[1].split( '.' );
+			var usestr = args[2];
+			var quantity = parseInt( args[3] ) || 1;
+			var price = args[4];
 			var price_nb = parseInt( args[7] ) || 1;
 			var repeat = parseInt( args[8] ) || 0;
 
@@ -918,41 +959,27 @@
 				// test room in storage if rules require
 
 				// pay the price, if available
-				if( price_type )
+				if( price )
 				{
 					// check that we have the price
-					if( !stateCurrent.inv[ price_slot ][ price_type ] || stateCurrent.inv[ price_slot ][ price_type ].nb < price_nb )
-						return;
+					if( invGetItemNb( price ) < price_nb )	return;
 
-					stateCurrent.inv[ price_slot ][ price_type ].nb -= price_nb;
-					if( stateCurrent.inv[ price_slot ][ price_type ].nb == 0 )
-						delete stateCurrent.inv[ price_slot ][ price_type ];
+					invChangeItemNb( price, 0 - price_nb );
 				}
 
 				// get the item
-				if( !stateCurrent.inv[ slot ][ itemname ] )
-					stateCurrent.inv[ slot ][ itemname ] = { nb:0 };
-				if( usestr )
-					stateCurrent.inv[ slot ][ itemname ].use = usestr;
-				stateCurrent.inv[ slot ][ itemname ].nb += quantity;
+				invChangeItemNb( item, quantity, usestr );
 			}
 			else if( type == 'del' )	// lose, use or sell
 			{
 				// check that we have the item
-				if( !stateCurrent.inv[ slot ][ itemname ] || stateCurrent.inv[ slot ][ itemname ].nb < quantity )
-					return;
+				if( invGetItemNb( item ) < quantity )	return;
 
-				stateCurrent.inv[ slot ][ itemname ].nb -= quantity;
-				if( stateCurrent.inv[ slot ][ itemname ].nb == 0 );
-					delete stateCurrent.inv[ slot ][ itemname ];
+				invChangeItemNb( item, 0 - quantity );
 
 				// get the price, if available
-				if( price_type )
-				{
-					if( stateCurrent.inv[ price_slot ][ price_type ] )
-						stateCurrent.inv[ price_slot ][ price_type ] = { nb:0 };
-					stateCurrent.inv[ price_slot ][ price_type ].nb += price_nb;
-				}
+				if( price )
+					invChangeItemNb( price, price_nb );
 			}
 			if( !repeat )
 				this.disable = true;
@@ -983,7 +1010,45 @@
 
 			return [ sum, str ];
 		}
-		
+
+	//-------------------------------- Inventory functions -----------------------------------------------
+
+		function invGetItemNb( item )
+		{
+			var slot = item[0];
+			var itemname = item[1];
+			return stateCurrent.inv[ slot ][ itemname ] ? stateCurrent.inv[ slot ][ itemname ].nb : 0;
+		}
+
+		function invChangeItemNb( item, mod, usestr )
+		{
+			var slot = item[0];
+			var itemname = item[1];
+
+			// if no item name and it is a del, clear the whole slot
+			if( itemname == undefined )
+			{
+				if( mod > 0 )
+					trace( 'Can\'t add an undefined item to slot ' + slot );
+				else
+					stateCurrent.inv[ slot ] = {};
+				return;
+			}
+
+			if( !stateCurrent.inv[ slot ][ itemname ] )
+			{
+				if( mod < 0 ) return;	// optimisation: don't create if it is a subtration and there's none already
+
+				stateCurrent.inv[ slot ][ itemname ] = { nb:0 };
+				if( usestr )
+					stateCurrent.inv[ slot ][ itemname ].use = usestr;
+			}
+			stateCurrent.inv[ slot ][ itemname ].nb += mod;
+
+			if( stateCurrent.inv[ slot ][ itemname ].nb < 0 )
+				delete stateCurrent.inv[ slot ][ itemname ];
+		}
+
 	//-------------------------------- Condition testing -----------------------------------------------
 
 		// Formalisme pour les conditions:
@@ -1089,13 +1154,11 @@
 								 || ( valmax != undefined && val > valmax ) )
 									result = false;
 								break;
-					case 'inv':	var slot = expr[1];
-								var itemname = expr[2];
+					case 'inv':	var item = expr.slice( 1, 3 )
 								var valmin = parseInt( expr[3] ) || 1;
 								var valmax = expr[4];
-								if( stateCurrent.inv[slot][ itemname ] == undefined
-								 || stateCurrent.inv[slot][ itemname ].nb < valmin
-								 || ( valmax != undefined && stateCurrent.inv[slot][ itemname ].nb > valmax ) )
+								if( invGetItemNb( item ) < valmin
+								 || ( valmax != undefined && invGetItemNb( item ) > valmax ) )
 									result = false;
 								break;
 					case 'stat':var key = expr[1];
@@ -1125,7 +1188,7 @@
 			{
 				var req = createRequest();
 				var reqargs = { 'cmd':'book', 'act':'delete', 'bookid': bookCurrent.id };
-				sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ) );
+				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 				var data = checkResp( req );
 				if( data )
 					displayPage( 'booktitle' );
@@ -1141,7 +1204,7 @@
 			{
 				var req = createRequest();
 				var reqargs = { 'cmd':'book', 'act':'rename', 'bookname':book.title, 'newbookname':title };
-				sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ) );
+				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 				var data = checkResp( req );
 				if( data )
 					book.title = title;
@@ -1453,7 +1516,7 @@
 			{
 				var req = createRequest();
 				var reqargs = { 'cmd':'paragraph', 'act':'create', 'bookname':book.title, 'parname':defaultParagraphName, 'text':defaultParagraphText };
-				sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ) );
+				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 				var data = checkResp( req );
 				if( data )
 				{
@@ -1505,7 +1568,7 @@
 			{
 				var req = createRequest();
 				var reqargs = { 'cmd':'paragraph', 'act':'rename', 'bookname':book.title, 'parname':parname, 'newparname':newparname };
-				sendRequestPOST( req, plrep + 'book.pl', argsPOST( reqargs ) );
+				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 				var data = checkResp( req );
 				if( data )
 				{
@@ -1645,28 +1708,61 @@
 
 	</script>
 	<style type="text/css">
-		body { background-color:lightsteelblue; background-image:url('papertile.jpg'); }
+		body {
+			background-color:white;
+			background-image:url('papertile.jpg');
+			margin: 0px;
+		}
 
-		table#booklist td { padding:5px; }
+		#title_bar {
+			width:320px;
+			text-align: center;
+			font-size: 16px;
+			background: #ccc;
+			background: -webkit-gradient(linear, 0 0, 0 70%, from(#fff), to(#ccc));
+			background: linear-gradient(#fff, #ccc 70%);
+			color: #444;
+			text-shadow: 0 1px 0 #fff;
+			border-bottom: 1px solid #999;
+			height: 32px;
+			line-height: 32px;
+			padding: 0px;
+			-webkit-box-shadow: 0 0 3px rgba(0,0,0,0.3);
+			box-shadow: 0 0 3px rgba(0,0,0,0.3);
+		}
+
+		table#booklist td {
+			padding:5px;
+			-webkit-box-shadow: 0 0 3px rgba(0,0,0,0.3);
+			box-shadow: 0 0 3px rgba(0,0,0,0.3);
+		}
 		table#edit td { padding:5px; border:solid grey 1px; vertical-align: text-top; }
 		table#edit td#bookparagraphs { width:300px; }
 		table#edit td#paragraph {}
 		table#bookprops td { border:none; }
 		table#bookprops td.what { text-align:right; }
 
-		input { background-color:#DED9AF; margin: 1px; border-radius:5px; border:1px solid #918973; }
-		table.booklist { }
-		table.booklist td { border-radius:10px; border:solid 1px #918973; padding:4px; background-color:#DED9AF; text-align:center; }
-		table.booklist td.alreadyhave { background-color:silver; }
+		input[type=button] {
+			background-color:#DED9AF;
+			padding:1px;
+			margin:4px 1px;
+			border-radius:5px;
+			border:1px solid #918973;
+			-webkit-box-shadow: 0 0 3px rgba(0,0,0,0.3);
+			box-shadow: 0 0 3px rgba(0,0,0,0.3);
+		}
+		table#booklist { }
+		table#booklist td { border-radius:10px; border:solid 1px #918973; padding:4px; background-color:#DED9AF; text-align:center; }
+		table#booklist td.alreadyhave { background-color:silver; }
 
 		td#parlist ul { list-style-type:none; }
 		td#parlist ul li { border:dotted navy 1px; margin-top:1px; cursor:pointer; }
 
 		td#paragraph li { margin-top:3px; }
 
-		div#paragraph.mobile { width:310px; text-align:justify; }
-		div#paragraph.mobile ul { padding-left:0px;  }
-		div#paragraph.mobile li { margin-top:5px; text-align:left; }
+		div#content { margin:2px; padding:0 }
+		div#content.mobile { width:308px; }
+		div#text { text-align:justify; }
 
 		span.action { cursor:pointer; }
 		span.turnto { color:darkgreen; text-shadow:0px 0px 2px black; }
@@ -1674,6 +1770,7 @@
 		span.luck { color:#101040; text-shadow:0px 0px 2px black; }
 		span.roll { color:#101040; text-shadow:0px 0px 2px black; }
 		span.item { color:#4F3F4F; text-shadow:1px 1px 2px black; }
+		span.var { color:#1732A8; text-shadow:1px 1px 2px black; }
 
 		span.changeableParent { position:relative; padding-top:1px; }
 		span.changeableParent input { border:none; }
@@ -1681,7 +1778,21 @@
 
 		div.img { text-align:center; }
 
-		table.white { border-collapse: collapse }
+		table#booktitle {
+			border-collapse: collapse;
+			-webkit-box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+			box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+		}
+		table#booktitle td { padding:3px; border:solid 1px grey; }
+		table#booktitle td.center { text-align:center; }
+		table#booktitle td.left { text-align:left; }
+		table#booktitle td.right { text-align:right; }
+
+		table.white {
+			border-collapse: collapse;
+			-webkit-box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+			box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+		}
 		table.white th { padding:3px; background-color:#d8d8d8; border:solid 1px grey; font-weight:700; }
 		table.white td { padding:3px; background-color:white; border:solid 1px grey; text-align:center; }
 
@@ -1691,7 +1802,7 @@
 </head>
 
 <body onload='start()'>
-	<div id='title_bar'>Gamebooks</div>
+	<div id='title_bar'></div>
 	<div id='content'></div>
 </body>
 

@@ -267,6 +267,18 @@
 		{
 			store.removeItem( 'GameBooks / ' + bookName + ' / State' );
 			if( cb ) setTimeout( cb, 0 );
+		},
+		
+		loadSettings:function( cb )
+		{
+			var settings = store.getItem( 'GameBooks / Settings' );
+			setTimeout( function(){ cb( JSON.parse( settings ) ) }, 0 );
+		},
+		
+		saveSettings:function( settings, cb )
+		{
+			store.setItem( 'GameBooks / Settings', JSON.stringify( settings ) );
+			if( cb ) setTimeout( cb, 0 );
 		}
 	};
 })();
