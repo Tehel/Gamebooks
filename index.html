@@ -14,9 +14,12 @@
 	 * Play
 	 * - fights
 	 * - items use/drop from inventory
+	 * - masquer le champ alea quand non utilisé
 	 * - permanent links : as items effect (map shows image, spellbook show text, hints are item- or tag-activated links)
 	 * - test item action for buying/selling
 	 * - add powers (Lone wolf, MORT) as an inventory slot (size limits number)
+	 * - automatic testing for conditions ( 0 stamina -> 14, 60, generic death section )
+	 * - complete rules encoding in book ?
 
 	 * Edition
 	 * - fix editing (rename/add/remove section)
@@ -56,10 +59,41 @@
 
 		var libraryService = 'http://www.looten.net/cgi-bin/book.pl';
 		if( document.location.href.match( /gcnet/ ) )	libraryService = 'book.pl';
-		if( document.location.href.match( /(localhost|192\.168\.)/ ) ) libraryService = '../cgi-bin/';
+		if( document.location.href.match( /(localhost|192\.168\.)/ ) ) libraryService = '/cgi-bin/book.pl';
 
 		// d? = 1-?,  t? = 0-?
 		var ruletypes = {
+			'Chienlit':{
+				stats:{ health:'100' },
+				inv:{
+					bag:-1,
+					team:-1,		// team members
+					credit:-1		// Global and individual recognition
+				},
+				guiStats:'<tr><th>Santé</th><td>{health.current}<small> / {health.init}</small></td></tr>',
+				guiInventory:'<tr><th>Equipe</th><th>Crédit</th><th>Inventaire</th></tr>'
+							+ '<tr><td>{team}</td><td>{credit}</td><td>{bag}</td></tr>',
+				guiAlea:'<tr><th>Alea</th><td id="alea">&nbsp;</td></tr>',
+			},
+			'Outremer':{
+				stats:{
+					study:'t10',
+					sport:'t10',
+					social:'t10',
+					dishonnest:'t10',
+					resist:'8'
+				},
+				inv:{ codes:-1, pocket:-1 },		// all containers are unlimited
+				guiStats:'<tr><th>Etudes</th><td>{study.current}</td></tr>'
+							+ '<tr><th>Sport</th><td>{sport.current}</td></tr>'
+							+ '<tr><th>Popularité</th><td>{social.current}</td></tr>'
+							+ '<tr><th>Malhonnêteté</th><td>{dishonnest.current}</td></tr>'
+							+ '<tr><th>Résistance</th><td>{resist.current}<small> / {resist.init}</small></td></tr>',
+				guiInventory:'<tr><th>Codes</th><th>Poches</th></tr>'
+							+ '<tr><td>{codes}</td><td>{pocket}</td></tr>',
+				guiAlea:'<tr><th>Alea</th></tr><tr><td id="alea">&nbsp;</td></tr>',
+				fight:{}
+			},
 			'Fighting fantasy':{
 				stats:{
 					skill:'6+d6',
@@ -77,6 +111,7 @@
 						+ '<tr><td>{weapon}</td><td rowspan="3">{bag}</td></tr>'
 						+ '<tr><th>Pouch</th></tr>'
 						+ '<tr><td>{pouch}</td></tr>',
+				guiAlea:'<tr><th>Alea</th></tr><tr><td id="alea">&nbsp;</td></tr>',
 				fight:{}
 			},
 			'Sorcery':{
@@ -96,6 +131,7 @@
 						+ '<tr><td>{weapon}</td><td rowspan="3">{bag}</td></tr>'
 						+ '<tr><th>Pouch</th></tr>'
 						+ '<tr><td>{pouch}</td></tr>',
+				guiAlea:'<tr><th>Alea</th></tr><tr><td id="alea">&nbsp;</td></tr>',
 				fight:{}
 			},
 			'Lone Wolf':{
@@ -113,6 +149,7 @@
 						+ '<tr><td>{weapon}</td><td rowspan="3">{special}</td></tr>'
 						+ '<tr><th>Pouch</th></tr>'
 						+ '<tr><td>{pouch}</td></tr>',
+				guiAlea:'<tr><th>Alea</th></tr><tr><td id="alea">&nbsp;</td></tr>',
 				fight:{}
 			},
 			'Lone Wolf Dark':{
@@ -130,6 +167,7 @@
 						+ '<tr><td>{weapon}</td><td rowspan="3">{special}</td></tr>'
 						+ '<tr><th>Pouch</th></tr>'
 						+ '<tr><td>{pouch}</td></tr>',
+				guiAlea:'<tr><th>Alea</th></tr><tr><td id="alea">&nbsp;</td></tr>',
 				fight:{
 					table:[	[ [ 0,99],[ 0,99],[ 0, 8],[ 0, 6],[ 1, 6],[ 2, 5],[ 3, 5],[ 4, 5],[ 5, 4],[ 6, 4],[ 7, 4],[ 8, 3],[ 9, 3] ],
 							[ [ 0,99],[ 0, 8],[ 0, 7],[ 1, 6],[ 2, 5],[ 3, 5],[ 4, 4],[ 5, 4],[ 6, 3],[ 7, 3],[ 8, 3],[ 9, 3],[10, 2] ],
@@ -159,7 +197,8 @@
 			isClientMobile = uagent.search( 'android' ) > -1
 						  || uagent.search( 'iphone' ) > -1
 						  || uagent.search( 'ipod' ) > -1;
-			clickEvent = isClientMobile ? 'touchstart' : 'click';
+			isClientMobile = 1;
+			clickEvent = /*isClientMobile ? 'touchstart' :*/ 'click';
 			clientCheck();
 
 			// select IndexedDB if present, else use LocalStorage
@@ -561,7 +600,7 @@
 
 		function changeParRead( target )
 		{
-			// stack a copy of the current state, updating the paragraph id
+			// update the paragraph id and stack a copy of the current state
 			stateCurrent.paragraph = target == 'back' ? states[1].paragraph : target;
 			states.unshift( deepCopy( stateCurrent ) );
 			stateTmp = { actions:[] };			// clear all temporary variables
@@ -575,8 +614,8 @@
 				if( par )
 				{
 					bookCurrentText = par;
-					runAutos();
 					updateParRead();
+					runAutos();
 				}
 				else
 				{
@@ -629,7 +668,7 @@
 			header += '</td></tr><tr><td>';
 			header += '<table class="white" id="stats"></table>';
 			header += '</td><td>';
-			header += '<table class="white"><tr><th>Alea</th></tr><tr><td id="alea">&nbsp;</td></tr></table>';
+			header += '<table class="white">' + bookCurrent.rules.guiAlea + '</table>';
 			header += '</td></tr></table>';
 
 			header += '<table class="white" id="inventory"></table>';
@@ -659,7 +698,7 @@
 					case 'link':	// ( text, condition, section_id ){link:rendez-vous au 34::34}
 									// - section_id can be 'back'
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, clickEvent, action_go, { target: els[2] } );
+									addSetupEvent( actionId, clickEvent, action_go, els[2] );
 									stateTmp.actions.push( { id:actionId, cond:els[1], style:'turnto' } );
 									id++;
 									break;
@@ -678,13 +717,13 @@
 					case 'roll':	// ( text, '', type )
 									// - type is a list of dices to roll, separated by ;  e.g., '6;6', '9'
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, clickEvent, action_roll, { type:els[2] } );
+									addSetupEvent( actionId, clickEvent, action_roll, els[2] );
 									stateTmp.actions.push( { id:actionId, cond:'!tmp.roll', style:'roll' } );
 									id++;
 									break;
 					case 'var':		// ( text, condition, path, action )
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, clickEvent, action_var, { path:els[2], act:els[3] } );
+									addSetupEvent( actionId, clickEvent, action_var, els.slice(2) );
 									stateTmp.actions.push( { id:actionId, cond:els[1], style:'var' } );
 									id++;
 									break;
@@ -693,7 +732,7 @@
 									// - price_type is the name of another item, for exchanges
 									// - quantities are 1 by default
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, clickEvent, action_item, { item: els.slice(2) } );
+									addSetupEvent( actionId, clickEvent, action_item, els.slice(2) );
 									stateTmp.actions.push( { id:actionId, cond:els[1], style:'item' } );
 									id++;
 									break;
@@ -706,9 +745,9 @@
 									});
 									break;
 					case 'list':	repl = '<ul><li>' + els.join( '</li><li>' ) + '</li></ul>'; break;
-					case 'b':		repl = '<b>' + els[0] + '</b>'; break;
-					case 'i':		repl = '<i>' + els[0] + '</i>'; break;
-					case 's':		repl = '<sup>' + els[0] + '</sup>'; break;
+					case 'b':		repl = '<b>' + els.join(':') + '</b>'; break;
+					case 'i':		repl = '<i>' + els.join(':') + '</i>'; break;
+					case 's':		repl = '<sup>' + els.join(':') + '</sup>'; break;
 					case 'br':		repl = '<br><br>'; break;
 					default:		repl = '<b>UNKOWN META</b>'; break;
 				}
@@ -738,40 +777,16 @@
 				auto.forEach( function( act ){
 					var els = act.split(':');
 					var type = els.shift();
-					var text = els.shift();	// text should always be empty
+					var text = els.shift();	// text should always be empty in autos
 					var cond = els.shift();
 					if( cond == '' || testCond( cond ) )
 					{
 						switch( type )
 						{
-							case 'item':	//{add:weapon.Bouclier}
-											// add:out.stilts:usestr	/ add:pouch.goldCoin::2	/ del:out:stilts
-											var act = els[0];
-											var item = els[1].split( '.' );
-											var usestr = els[2];
-											var nb = parseInt( els[3] ) || 1;
-											if( act == 'add' )		invChangeItemNb( item, nb );
-											else if( act == 'del' )	invChangeItemNb( item, 0 - nb );
-											else					trace( "Can't use tag action " + act );
-											break;
-							case 'tag':		// add:readManticoreScroll	/ del:readManticoreScroll
-											var act = els[0];
-											var tagname = els[1];
-											if( act == 'add' )		stateCurrent.tags[ tagname ] = 1;
-											else if( act == 'del' )	delete stateCurrent.tags[ tagname ];
-											else					trace( "Can't use tag action " + act );
-											break;
-							case 'stat':	// stat:skill:+2
-											var key = els[0];
-											var mod = els[1];
-											var stat = stateCurrent.stats[ key ];
-											if( stat )
-												stat.current = Math.min( stat.init, Math.max( 0, stat.current + parseInt( mod ) ) );
-											else
-												trace( "Can't use stat: " + key );
-											break;
-							default:		trace( "Can't use auto type: " + type );
-											break;
+							case 'item':	action_item( els ); break;
+							case 'tag':		action_tag( els ); break;
+							case 'var':		action_var( els ); break;
+							default:		trace( "Can't use auto type: " + type ); break;
 						}
 					}
 				});
@@ -781,7 +796,7 @@
 
 		function updateAlea()
 		{
-			$( 'alea' ).innerHTML = stateTmp.alea;
+			$( 'alea' ).innerHTML = stateTmp.rollText;
 		}
 
 		function updateStats()
@@ -846,38 +861,47 @@
 		// jump to the section
 		function action_go()
 		{
-			if( !this.active ) return;
+			if( this.active == false ) return;
 
-			changeParRead( this.args.target );
+			changeParRead( this.args );
 		}
 
-		function action_var()
+		function action_var( autoargs )
 		{
-			if( !this.active ) return;
+			if( this.active == false ) return;
+			var isAuto = this.active == undefined;
 
-			var path = this.args.path.split( '.' );
-			var act = this.args.act;
+			// stat.skill:+2 / stat.skill:=max / tmp.rollmod:+1 / tmp.rollmod:+stat.skill / tmp.rollmod:+inv.bag.pieces
+			var args = isAuto ? autoargs : this.args;
+			var path = args[0].split( '.' );
+			var act = args[1];
 
-			var prf = act.charAt(0);
+			var op = act.charAt(0);
 			var val = act.substr(1);
 			var vals = val.split( '.' );
 			var num = parseInt( val );
 			// accept the value 'max' for stat setting
-			if( path[0] == 'stat' && val == 'max' ) num = stateCurrent.stats[ path[1] ].init;
+			if( path[0] == 'stat' && op == '=' && val == 'max' ) num = stateCurrent.stats[ path[1] ].init;
 			// stateTmp values can be modified using values from stats with +stat.skill, for example
 			if( path[0] == 'tmp' && vals[0] == 'stat' ) num = stateCurrent.stats[ vals[1] ].current;
 			// stateTmp values can be modified using quantities from inventory with +inv.pouch.pieces, for example
-			if( path[0] == 'tmp' && vals[0] == 'inv' ) num = invGetItemNb( vals.splice( 1, 2 ) );
+			if( path[0] == 'tmp' && vals[0] == 'inv' ) num = invGetItemNb( vals.slice( 1 ) );
 			// auto-create receptor for stateTmp values
 			if( path[0] == 'tmp' && !stateTmp[ path[1] ] ) stateTmp[ path[1] ] = 0;
 
-			switch( prf )
+			switch( op )
 			{
 				case '+':	if( path[0] == 'tmp' )			stateTmp[ path[1] ] += num;
 							else if( path[0] == 'stat' )	stateCurrent.stats[ path[1] ].current += num;
 							break;
 				case '-':	if( path[0] == 'tmp' )			stateTmp[ path[1] ] -= num;
 							else if( path[0] == 'stat' )	stateCurrent.stats[ path[1] ].current -= num;
+							break;
+				case '/':	if( path[0] == 'tmp' )			stateTmp[ path[1] ] = Math.floor( stateTmp[ path[1] ] / num );
+							else if( path[0] == 'stat' )	stateCurrent.stats[ path[1] ].current = Math.floor( stateCurrent.stats[ path[1] ].current / num );
+							break;
+				case '*':	if( path[0] == 'tmp' )			stateTmp[ path[1] ] *= num;
+							else if( path[0] == 'stat' )	stateCurrent.stats[ path[1] ].current *= num;
 							break;
 				case '=':	if( path[0] == 'tmp' )			stateTmp[ path[1] ] = num;
 							else if( path[0] == 'stat' )	stateCurrent.stats[ path[1] ].current = num;
@@ -888,14 +912,23 @@
 		}
 
 		// rolls the described dices
-		function action_roll()
+		function action_roll( autoargs )
 		{
-			if( !this.active ) return;
+			if( this.active == false ) return;
+			var isAuto = this.active == undefined;
 
-			var rollResult = roll( this.args.type );
+			var args = isAuto ? autoargs : this.args;
+			var rollResult = roll( args );
 
 			stateTmp.roll = rollResult[0];
-			stateTmp.alea = rollResult[1];
+			stateTmp.rollText = rollResult[1];
+
+			// use the roll modifier if defined
+			if( stateTmp.rollmod != undefined )
+			{
+				stateTmp.roll += stateTmp.rollmod;
+				stateTmp.rollText += ' + <strong>' + stateTmp.rollmod + '</strong>';
+			}	
 
 			// trigger an update of actions
 			updateAlea();
@@ -904,15 +937,14 @@
 
 		function action_luck()
 		{
-			if( !this.active ) return;
+			if( this.active == false ) return;
 
 			// rolls a dice
 			var rollResult = roll( bookCurrent.rules.testLuckAgainst );
 			stateTmp.luckRoll = rollResult[0];
 			stateTmp.luckTest = stateTmp.luckRoll <= stateCurrent.stats.luck.current ? 1 : 0;
 
-			stateTmp.alea = rollResult[1];
-			//stateTmp.alea = rollResult[1] + ' / ' + stateCurrent.stats.luck.current + ' : ' + stateTmp.luckTest;
+			stateTmp.rollText = rollResult[1] + ' / ' + stateCurrent.stats.luck.current;
 
 			// decrease current luck, if > 0
 			if( stateCurrent.stats.luck.current > 0 )
@@ -926,28 +958,48 @@
 
 		function action_skill()
 		{
-			if( !this.active ) return;
+			if( this.active == false ) return;
 
 			// rolls a dice
 			var rollResult = roll( bookCurrent.rules.testLuckAgainst );
 			stateTmp.skillRoll = rollResult[0];
 			stateTmp.skillTest = stateTmp.skillRoll <= stateCurrent.stats.skill.current ? 1 : 0;
 
-			stateTmp.alea = rollResult[1];
-			//stateTmp.alea = rollResult[1] + ' / ' + stateCurrent.stats.skill.current + ' : ' + stateTmp.skillTest;
+			stateTmp.rollText = rollResult[1] + ' / ' + stateCurrent.stats.skill.current;
 
 			// trigger an update of actions
 			updateAlea();
 			updateActions();
 		}
 
-		// takes or remove an item, maybe in exchange for something
-		// ( action_type, slot.item_name, use_str, item_quantity, price_slot.price_item, price_quantity, many, use )
-		function action_item()
+		function action_tag( autoargs )
 		{
-			if( !this.active && !this.auto ) return;
+			if( this.active == false ) return;
+			var isAuto = this.active == undefined;
 
-			var args = this.args.item;
+			// add:readManticoreScroll	/ del:readManticoreScroll
+			var args = isAuto ? autoargs : this.args;
+			var act = args[0];
+			var tagname = args[1];
+			if( act == 'add' )
+				stateCurrent.tags[ tagname ] = 1;
+			else if( act == 'del' )
+				delete stateCurrent.tags[ tagname ];
+			else
+				trace( "Can't use tag action " + act );
+
+			updateActions();
+		}
+
+		// takes or remove an item, maybe in exchange for something
+		function action_item( autoargs )
+		{
+			if( this.active == false ) return;
+			var isAuto = this.active == undefined;
+
+			// ( action_type, slot.item_name, use_str, item_quantity, price_slot.price_item, price_quantity, many, use )
+			// add:weapon.Bouclier / add:out.stilts:usestr / add:pouch.goldCoin::2 / del:out:stilts
+			var args = isAuto ? autoargs : this.args;
 			var type = args[0];
 			var item = args[1].split( '.' );
 			var usestr = args[2];
@@ -975,7 +1027,7 @@
 			else if( type == 'del' )	// lose, use or sell
 			{
 				// check that we have the item
-				if( invGetItemNb( item ) < quantity )	return;
+				if( invGetItemNb( item ) == 0 )	return;
 
 				invChangeItemNb( item, 0 - quantity );
 
@@ -983,7 +1035,10 @@
 				if( price )
 					invChangeItemNb( price, price_nb );
 			}
-			if( !repeat )
+			else
+				trace( "Can't use item action " + act );
+
+			if( !isAuto && !repeat )		// there's no 'this' when called as an auto
 				this.disable = true;
 
 			// trigger an update of actions
@@ -998,10 +1053,11 @@
 			// rolls the described dices
 			type.split('+').forEach( function( dice ){
 				var lt = dice.charAt(0);
+				var max = parseInt( dice.substr(1) );
 				switch( lt )
 				{
-					case 'd':	aleas.push( 1 + Math.floor( Math.random() * dice.substr(1) ) ); break;
-					case 't':	aleas.push( Math.floor( Math.random() * dice.substr(1) ) ); break;
+					case 'd':	aleas.push( 1 + Math.floor( Math.random() * max ) ); break;
+					case 't':	aleas.push( Math.floor( Math.random() * ( max + 1 ) ) ); break;
 					default:	aleas.push( parseInt( dice ) ); break;
 				}
 			});
@@ -1047,21 +1103,24 @@
 			}
 			stateCurrent.inv[ slot ][ itemname ].nb += mod;
 
-			if( stateCurrent.inv[ slot ][ itemname ].nb < 0 )
+			if( stateCurrent.inv[ slot ][ itemname ].nb <= 0 )
 				delete stateCurrent.inv[ slot ][ itemname ];
 		}
 
 	//-------------------------------- Condition testing -----------------------------------------------
 
 		// Formalisme pour les conditions:
-		// objet dans l'inventaire (quantité)					inv:type[:nb]
-		// valeur du dernier lancer de dés (fourchette)			tmp:roll:valmin[:valmax]
-		// valeur definie										tmp:luckTest
-		// valeur definie et nulle								tmp:luckTest:0
-		// valeur definie et non nulle							tmp:luckTest:1
-		// tag present											tag:readManticoreScroll
-		// stat (fourchette)									stat:stamina:valmin[:valmax]
+		// objet dans l'inventaire (quantité)					inv.type[.nb]
+		// valeur du dernier lancer de dés (fourchette)			tmp.roll.valmin[.valmax]
+		// valeur definie										tmp.luckTest
+		// valeur definie et nulle								tmp.luckTest.0
+		// valeur definie et non nulle							tmp.luckTest.1
+		// tag present											tag.readManticoreScroll
+		// stat (fourchette)									stat.stamina.valmin[.valmax]
 		// inversion de ces conditions							! devant le premier terme
+		// serie de OR											cond1 | cond2 | cond3
+		// serie de AND											cond1 * cond2 * cond3
+		// expression complexe									!(cond1*cond2)|cond3
 
 		// tests a complex expression (with parenthesis and logical operators
 		// returns true or false
@@ -1072,8 +1131,8 @@
 			if( cond == undefined || cond == '' ) return true;
 
 			var capt;
-			while( capt = /\(([^()])\)/.exec( cond ) )		// capture parenthesis content with no parenthesis inside
-				cond.replace( capt[0], testSimpleCond( capt[1] ) ? 1 : 0 );
+			while( capt = /\(([^()]+)\)/.exec( cond ) )		// capture parenthesis content with no parenthesis inside
+				cond = cond.replace( capt[0], testSimpleCond( capt[1] ) ? 1 : 0 );
 
 			return testSimpleCond( cond );
 		}
@@ -1139,8 +1198,8 @@
 				type = type.substr(1);
 			}
 
-			if( cond == '0' ) result = false;
-			else if( cond == '1' ) result = true;
+			if( type == '0' ) result = false;
+			else if( type == '1' ) result = true;
 			else
 			{
 				switch( type )
@@ -1172,6 +1231,9 @@
 									result = false;
 								break;
 					case 'tag':	result = stateCurrent.tags[ expr[1] ] != undefined;
+								break;
+					case 'from':var sectid = expr[1];
+								result = sectid == states[1].paragraph;
 								break;
 					default:	trace( "Can't use condition type: " + type );
 								break;
@@ -1294,8 +1356,6 @@
 			});
 		}
 
-//{type:text:condition:
-
 		// generate a functional representation of the book, with links, backlinks, tag and item references
 		function mapBook( title, cb )
 		{
@@ -1303,7 +1363,7 @@
 				var map = { text:{} };
 
 				var tagtest = new RegExp(  '\\btag\\.([^:}\)\|*]+)' );
-				var itemtest = new RegExp( '\\binv\\.([^:}\)\|*]+)' );
+				var itemtest = new RegExp( '\\binv\\.([^.]+)\\.([^.:}\)\|*]+)' );
 
 				var tagchange = new RegExp(   '\\btag:[^:]*:[^:]*:(add|del):([^:}]+)' );
 				var itemchange = new RegExp( '\\bitem:[^:]*:[^:]*:(add|del):([^:}]+)' );
@@ -1350,7 +1410,7 @@
 					while( capt = itemtest.exec( str ) )
 					{
 						str = str.replace( capt[0], '' );
-						add( id, sect, 'item', 'test', capt[1] );
+						add( id, sect, 'item', 'test', capt[1] + '.' + capt[2] );
 					}
 					if( debug ) trace( 'After looking for item test:\n' + str );
 
@@ -1405,7 +1465,7 @@
 							while( capt = itemtest.exec( str ) )
 							{
 								str = str.replace( capt[0], '' );
-								add( id, sect, 'item', 'test', capt[1] );
+								add( id, sect, 'item', 'test', capt[1] + '.' + capt[2] );
 							}
 							if( debug ) trace( 'After looking for item test:\n' + str );
 
