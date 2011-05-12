@@ -73,7 +73,7 @@
 				guiStats:'<tr><th>Santé</th><td>{health.current}<small> / {health.init}</small></td></tr>',
 				guiInventory:'<tr><th>Equipe</th><th>Crédit</th><th>Inventaire</th></tr>'
 							+ '<tr><td>{team}</td><td>{credit}</td><td>{bag}</td></tr>',
-				guiAlea:'<tr><th>Alea</th><td id="alea">&nbsp;</td></tr>',
+				guiAlea:'',
 			},
 			'Outremer':{
 				stats:{
@@ -214,6 +214,8 @@
 			}
 			//trace( 'using ' + Storage.type );
 
+			getOnlineBooklist();
+
 			if( isClientMobile )
 				$( 'content' ).className = 'mobile';
 
@@ -273,7 +275,7 @@
 				case 'localBookList':
 						updateTitleBar( 'Gamebooks : local books' );
 						str += '<input type="button" value="Get more books online" id="btngetOnlineBooklist"> ';
-						addSetupEvent( 'btngetOnlineBooklist', clickEvent, getOnlineBooklist );
+						addSetupEvent( 'btngetOnlineBooklist', clickEvent, goToPage, { page:'onlineBookList' } );
 						str += '<input type="button" value="Settings" id="btnsettings"> ';
 						addSetupEvent( 'btnsettings', clickEvent, goToPage, { page:'settings' } );
 						var books = objKeys( localBooks );
@@ -301,43 +303,50 @@
 						updateTitleBar( 'Gamebooks : online books' );
 						str += '<input type="button" id="btnback" value="Back to local library">';
 						addSetupEvent( 'btnback', clickEvent, goToLocalBookList );
+						str += '<input type="button" id="btnupdate" value="Force update">';
+						addSetupEvent( 'btnupdate', clickEvent, updateOnlineBooklist );
 						//str += '<input type="button" id="btnshowall" value="' + ( settings.onlineShowall ? 'Only new' : 'Show all' ) + '">';
 						//addSetupEvent( 'btnshowall', clickEvent, function(){ settings.onlineShowall = !settings.onlineShowall; displayPage( 'onlineBookList' ); });
 
-						str += '<table id="booklist">';
-
 						var books = objKeys( onlineBooks );
-						books.sort( function( a,b ) { return cmpobj( onlineBooks[a], onlineBooks[b], [ 'collection', 'collectionNb', 'title' ] ); } );
-
-						books.forEach( function( title, i ){
-							var bookdata = onlineBooks[ title ];
-							if( !localBooks[ title ] || settings.onlineShowall )
-							{
-								str += '<tr id="book_' + i + '"><td' + ( localBooks[ title ] ? ' class="alreadyhave"' : ' id="getbook_' + i + '"' ) + '>';
-								str += '<strong>' + title + '</strong><br><small>';
-								if( bookdata.collection )
-									str += bookdata.collection + ' / ' + bookdata.collectionNb + ' / ';
-								str += bookdata.author + '</small>';
-								if( !localBooks[ title ] )
+						if( books.length == 0 )
+						{
+							str += '<p>Retrieving the book list...<img src="circleball.gif"></p>';
+						}
+						else
+						{
+							str += '<table id="booklist">';
+							books.sort( function( a,b ) { return cmpobj( onlineBooks[a], onlineBooks[b], [ 'collection', 'collectionNb', 'title' ] ); } );
+							books.forEach( function( title, i ){
+								var bookdata = onlineBooks[ title ];
+								if( !localBooks[ title ] || settings.onlineShowall )
 								{
-									str += '<br><span id="progress_' + i + '"></span>';
-									addSetupEvent( 'getbook_' + i, clickEvent, getBook, { title:title, id:i, progress:'progress_' + i, finished:function( progress ){
-										if( settings.onlineShowall )
-										{
-											progress.parentNode.className = 'alreadyhave';
-											progress.parentNode.removeChild( progress );
-										}
-										else
-										{
-											var tr = progress.parentNode.parentNode;
-											tr.parentNode.removeChild( tr );
-										}
-									} } );
+									str += '<tr id="book_' + i + '"><td' + ( localBooks[ title ] ? ' class="alreadyhave"' : ' id="getbook_' + i + '"' ) + '>';
+									str += '<strong>' + title + '</strong><br><small>';
+									if( bookdata.collection )
+										str += bookdata.collection + ' / ' + bookdata.collectionNb + ' / ';
+									str += bookdata.author + '</small>';
+									if( !localBooks[ title ] )
+									{
+										str += '<br><span id="progress_' + i + '"></span>';
+										addSetupEvent( 'getbook_' + i, clickEvent, getBook, { title:title, id:i, progress:'progress_' + i, finished:function( progress ){
+											if( settings.onlineShowall )
+											{
+												progress.parentNode.className = 'alreadyhave';
+												progress.parentNode.removeChild( progress );
+											}
+											else
+											{
+												var tr = progress.parentNode.parentNode;
+												tr.parentNode.removeChild( tr );
+											}
+										} } );
+									}
+									str += '</td></tr>';
 								}
-								str += '</td></tr>';
-							}
-						});
-						str += '</table>';
+							});
+							str += '</table>';
+						}
 						break;
 
 				case 'booktitle':
@@ -422,13 +431,17 @@
 			$( 'title_bar' ).innerHTML = text;
 		}
 
-		function goToPage()
+		function goToPage( event )
 		{
+			event.preventDefault();
+
 			displayPage( this.args.page );
 		}
 
-		function goToLocalBookList()
+		function goToLocalBookList( event )
 		{
+			if( event ) event.preventDefault();
+
 			bookCurrent = null;
 			Storage.getBookList( function( list ){
 				localBooks = list;
@@ -436,18 +449,30 @@
 			});
 		}
 
-		function getOnlineBooklist( event )
+		function updateOnlineBooklist( event )
+		{
+			event.preventDefault();
+
+			onlineBooks = {};
+			displayPage( 'onlineBookList' );
+
+			getOnlineBooklist( event.shiftKey );
+		}
+
+		function getOnlineBooklist( update )
 		{
 			var req = createRequest();
-			var reqargs = { 'cmd': event.shiftKey ? 'booklistupdated' : 'booklist' };
-			sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
-
-			var data = checkResp( req );
-			if( data )
-			{
-				onlineBooks = data.booklist;
-				displayPage( 'onlineBookList' );
-			}
+			var reqargs = { 'cmd': update ? 'booklistupdated' : 'booklist' };
+			sendRequestGET( req, libraryService, argsGET( reqargs ), function(){
+				var data = checkResp( req );
+				if( data )
+				{
+					onlineBooks = data.booklist;
+					// if we're on the onlineBookList page, force a refresh
+					if( page == 'onlineBookList' )
+						displayPage( 'onlineBookList' );
+				}
+			});
 		}
 
 		function getBook()
@@ -463,7 +488,7 @@
 			req.finished = this.args.finished;
 			req.progress = this.args.progress;
 			var reqargs = { 'cmd':'getbook', 'bookname': title };
-			sendRequestPOST( req, libraryService, argsPOST( reqargs ), function(){
+			sendRequestGET( req, libraryService, argsGET( reqargs ), function(){
 				switch( this.readyState )
 				{
 					case 1:		break;
