@@ -5,6 +5,7 @@
     <title>FileReader Example</title>
 
     <script type="text/javascript" charset="utf-8" src="phonegap.js"></script>
+    <script language='Javascript' src='js/toolbox.js'></script>
     <script type="text/javascript" charset="utf-8">
 
     // Wait for PhoneGap to load
@@ -16,13 +17,14 @@
 	{
         document.addEventListener("deviceready", function(){
 			// PhoneGap is ready
+			alert( 'Device is ready !' );
 			window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, function( fs ){
 			    // Filesystem is available
 				rootDir = fs.root;
 				alert( 'root name: ' + rootDir.name );
 				alert( 'root name: ' + rootDir.fullPath );
 			}, fail);
-		};, false);
+		}, false);
     }
 	
 	function click()
@@ -48,8 +50,8 @@
 	{
         var reader = new FileReader();
         reader.onloadend = function(evt) {
-            console.log("Read as data URL");
-            console.log(evt.target.result);
+            trace("Read as data URL");
+            trace(evt.target.result);
         };
         reader.readAsDataURL(file);
     }
@@ -58,13 +60,13 @@
 	{
         var reader = new FileReader();
         reader.onloadend = function(evt) {
-            console.log("Read as text");
-            console.log(evt.target.result);
+            trace("Read as text");
+            trace(evt.target.result);
         };
         reader.readAsText(file);
     }
 
-    function fail(evt) { console.log(evt.target.error.code); }
+    function fail(evt) { trace( evt.target.error.code ); }
 
     </script>
   </head>
