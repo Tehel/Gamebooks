@@ -15,17 +15,24 @@
 	
     function onLoad()
 	{
-        document.addEventListener("deviceready", function(){
-			// PhoneGap is ready
-			alert( 'Device is ready !' );
-			window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, function( fs ){
-			    // Filesystem is available
-				rootDir = fs.root;
-				alert( 'root name: ' + rootDir.name );
-				alert( 'root name: ' + rootDir.fullPath );
-			}, fail);
-		}, false);
+        document.addEventListener("deviceready", devready, false);
     }
+
+	function devready()
+	{
+		// PhoneGap is ready
+		alert( 'Device is ready !' );
+		window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, gotFs, fail);
+	}
+
+	function gotFs( fs )
+	{
+		alert( 'Got FS: ' + fs.name );
+		// Filesystem is available
+		rootDir = fs.root;
+		alert( 'root name: ' + rootDir.name );
+		alert( 'root name: ' + rootDir.fullPath );
+	}
 	
 	function click()
 	{
