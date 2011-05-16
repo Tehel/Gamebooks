@@ -21,8 +21,8 @@
 	function devready()
 	{
 		// PhoneGap is ready
-		alert( 'Device is ready !' );
 		window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, gotFs, fail);
+		alert( 'Sent filesystem request' );
 	}
 
 	function gotFs( fs )
