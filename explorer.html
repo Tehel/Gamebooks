@@ -23,6 +23,11 @@
 	{
 		// PhoneGap is ready
 		trace( 'device ready' );
+		trace( window.requestFileSystem );
+		trace( LocalFileSystem );
+		trace( LocalFileSystem.PERSISTENT );
+		trace( gotFs );
+		trace( fail );
 		window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, gotFs, fail);
 		trace( 'Sent filesystem request' );
 	}
