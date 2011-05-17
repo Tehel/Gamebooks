@@ -23,7 +23,7 @@
 	{
 		// PhoneGap is ready
 		trace( 'device ready' );
-		trace( 'PhoneGap:' + toStr( PhoneGap, true, 2 ) );
+		$( 'out' ).innerHTML = 'PhoneGat:\n' + toStr( PhoneGap, true, 2 );
 /*		trace( 'LocalFileSystem:' + LocalFileSystem );
 		trace( 'LocalFileSystem.PERSISTENT:' + LocalFileSystem.PERSISTENT );
 		trace( 'gotFs:' + gotFs );
@@ -89,5 +89,6 @@
   <body onload="onLoad()">
     <h1>Example</h1>
     <p onclick='click()'>Read File</p>
+	<pre id='out'></pre>
   </body>
 </html>
