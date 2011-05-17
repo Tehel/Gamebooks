@@ -21,15 +21,15 @@
 		{
 			// PhoneGap is ready
 			trace( 'device ready' );
-			$( 'out' ).innerHTML = 'PhoneGat:\n' + toStr( PhoneGap, true, 2 );
-	/*		trace( 'LocalFileSystem:' + LocalFileSystem );
-			trace( 'LocalFileSystem.PERSISTENT:' + LocalFileSystem.PERSISTENT );
+			$( 'out' ).innerHTML = 'PhoneGap:\n' + toStr( PhoneGap, true, 2 );
+			trace( 'LocalFileSystem:' + LocalFileSystem );
 			trace( 'gotFs:' + expl_gotFs );
 			trace( 'fail:' + expl_fail );
-			trace( 'LocalFileSystem.requestFileSystem:' + LocalFileSystem.requestFileSystem );
+//			trace( 'LocalFileSystem.PERSISTENT:' + LocalFileSystem.PERSISTENT );
+//			trace( 'LocalFileSystem.requestFileSystem:' + LocalFileSystem.requestFileSystem );
 			window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, expl_gotFs, expl_fail);
-			//trace( window.requestFileSystem );
-	*/		trace( 'Sent filesystem request' );
+//			trace( window.requestFileSystem );
+			trace( 'Sent filesystem request' );
 		}
 
 		function expl_gotFs( fs )
