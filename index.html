@@ -9,6 +9,78 @@
 	<script language='Javascript' src='js/toolbox.js'></script>
 	<script language='Javascript' src='js/storageLs.js'></script>
 	<script language='Javascript'>
+		var rootDir;
+		
+		function expl_onLoad()
+		{
+			trace( 'document loaded' );
+			document.addEventListener("deviceready", expl_devready, false);
+		}
+
+		function expl_devready()
+		{
+			// PhoneGap is ready
+			trace( 'device ready' );
+			$( 'out' ).innerHTML = 'PhoneGat:\n' + toStr( PhoneGap, true, 2 );
+	/*		trace( 'LocalFileSystem:' + LocalFileSystem );
+			trace( 'LocalFileSystem.PERSISTENT:' + LocalFileSystem.PERSISTENT );
+			trace( 'gotFs:' + expl_gotFs );
+			trace( 'fail:' + expl_fail );
+			trace( 'LocalFileSystem.requestFileSystem:' + LocalFileSystem.requestFileSystem );
+			window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, expl_gotFs, expl_fail);
+			//trace( window.requestFileSystem );
+	*/		trace( 'Sent filesystem request' );
+		}
+
+		function expl_gotFs( fs )
+		{
+			trace( 'Got FS: ' + fs.name );
+			// Filesystem is available
+			rootDir = fs.root;
+			trace( 'root name: ' + rootDir.name );
+			trace( 'root name: ' + rootDir.fullPath );
+		}
+		
+		function expl_click()
+		{
+			trace( 'root name: ' + rootDir.name );
+			trace( 'root name: ' + rootDir.fullPath );
+		}
+
+		// fs.root.getFile("readme.txt", null, gotFileEntry, expl_fail);
+		
+		function expl_gotFileEntry(fileEntry)
+		{
+			fileEntry.file(expl_gotFile, expl_fail);
+		}
+
+		function expl_gotFile(file)
+		{
+			expl_readDataUrl(file);
+			expl_readAsText(file);
+		}
+
+		function expl_readDataUrl(file)
+		{
+			var reader = new FileReader();
+			reader.onloadend = function(evt) {
+				trace("Read as data URL");
+				trace(evt.target.result);
+			};
+			reader.readAsDataURL(file);
+		}
+
+		function expl_readAsText(file)
+		{
+			var reader = new FileReader();
+			reader.onloadend = function(evt) {
+				trace("Read as text");
+				trace(evt.target.result);
+			};
+			reader.readAsText(file);
+		}
+
+		function expl_fail(evt) { trace( evt.target.error.code ); }
 
 	/* TODO
 	 * Play
@@ -1896,10 +1968,13 @@
 	</style>
 </head>
 
-<body onload='start()'>
+<body onload='expl_onLoad()'>
 	<div id='title_bar'></div>
-	<p><a href='explorer.html'>Explorer</a></p>
 	<div id='content'></div>
+
+	<h1>Example</h1>
+	<p onclick='expl_click()'>Read File</p>
+	<pre id='out'></pre>
 </body>
 
 </html>
