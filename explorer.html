@@ -1,12 +1,12 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
                       "http://www.w3.org/TR/html4/strict.dtd">
 <html>
-  <head>
-    <title>FileReader Example</title>
+	<head>
+	<title>FileReader Example</title>
 
-    <script type="text/javascript" charset="utf-8" src="phonegap.js"></script>
-    <script language='Javascript' src='js/toolbox.js'></script>
-    <script type="text/javascript" charset="utf-8">
+	<script src="phonegap.js" type="text/javascript" charset="utf-8"></script>
+	<script language='Javascript' src='js/toolbox.js'></script>
+	<script language='Javascript'>
 
     // Wait for PhoneGap to load
     //
@@ -15,29 +15,31 @@
 	
     function onLoad()
 	{
+		trace( 'document loaded' );
         document.addEventListener("deviceready", devready, false);
     }
 
 	function devready()
 	{
 		// PhoneGap is ready
+		trace( 'device ready' );
 		window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, gotFs, fail);
-		alert( 'Sent filesystem request' );
+		trace( 'Sent filesystem request' );
 	}
 
 	function gotFs( fs )
 	{
-		alert( 'Got FS: ' + fs.name );
+		trace( 'Got FS: ' + fs.name );
 		// Filesystem is available
 		rootDir = fs.root;
-		alert( 'root name: ' + rootDir.name );
-		alert( 'root name: ' + rootDir.fullPath );
+		trace( 'root name: ' + rootDir.name );
+		trace( 'root name: ' + rootDir.fullPath );
 	}
 	
 	function click()
 	{
-		alert( 'root name: ' + rootDir.name );
-		alert( 'root name: ' + rootDir.fullPath );
+		trace( 'root name: ' + rootDir.name );
+		trace( 'root name: ' + rootDir.fullPath );
 	}
 
 	// fs.root.getFile("readme.txt", null, gotFileEntry, fail);
