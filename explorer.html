@@ -23,15 +23,15 @@
 	{
 		// PhoneGap is ready
 		trace( 'device ready' );
-		trace( 'PhoneGap:' + PhoneGap );
-		trace( 'LocalFileSystem:' + LocalFileSystem );
+		trace( 'PhoneGap:' + toStr( PhoneGap, true, 2 ) );
+/*		trace( 'LocalFileSystem:' + LocalFileSystem );
 		trace( 'LocalFileSystem.PERSISTENT:' + LocalFileSystem.PERSISTENT );
 		trace( 'gotFs:' + gotFs );
 		trace( 'fail:' + fail );
 		trace( 'LocalFileSystem.requestFileSystem:' + LocalFileSystem.requestFileSystem );
 		window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, gotFs, fail);
 		//trace( window.requestFileSystem );
-		trace( 'Sent filesystem request' );
+*/		trace( 'Sent filesystem request' );
 	}
 
 	function gotFs( fs )
