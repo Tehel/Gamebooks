@@ -301,6 +301,11 @@ function hasIndexedDB()
 	return window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB ? true : false;
 }
 
+function hasWebSQL()
+{
+	return window.openDatabase;
+}
+
 //--------------------------- Oriented object extensions ---------------------------
 
 function inheritFrom(ClassB, ClassA)

@@ -7,100 +7,36 @@
 	<script src="phonegap.js" type="text/javascript" charset="utf-8"></script>
 	<script language='Javascript' src='js/browserdetect.js'></script>
 	<script language='Javascript' src='js/toolbox.js'></script>
-	<script language='Javascript' src='js/storageLs.js'></script>
+	<script language='Javascript' src='js/storageLocalStorage.js'></script>
 	<script language='Javascript'>
-		var rootDir;
-		
-		function expl_onLoad()
-		{
-			trace( 'document loaded' );
-			document.addEventListener("deviceready", expl_devready, false);
-		}
-
-		function expl_devready()
-		{
-			// PhoneGap is ready
-			trace( 'device ready' );
-			$( 'out' ).innerHTML = 'PhoneGap:\n' + toStr( PhoneGap, true, 2 );
-			trace( 'gotFs:' + expl_gotFs );
-			trace( 'LocalFileSystem:' + window.LocalFileSystem );
-			trace( 'fail:' + expl_fail );
-//			trace( 'LocalFileSystem.PERSISTENT:' + LocalFileSystem.PERSISTENT );
-//			trace( 'LocalFileSystem.requestFileSystem:' + LocalFileSystem.requestFileSystem );
-			window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, expl_gotFs, expl_fail);
-//			trace( window.requestFileSystem );
-			trace( 'Sent filesystem request' );
-		}
-
-		function expl_gotFs( fs )
-		{
-			trace( 'Got FS: ' + fs.name );
-			// Filesystem is available
-			rootDir = fs.root;
-			trace( 'root name: ' + rootDir.name );
-			trace( 'root name: ' + rootDir.fullPath );
-		}
-		
-		function expl_click()
-		{
-			trace( 'root name: ' + rootDir.name );
-			trace( 'root name: ' + rootDir.fullPath );
-		}
-
-		// fs.root.getFile("readme.txt", null, gotFileEntry, expl_fail);
-		
-		function expl_gotFileEntry(fileEntry)
-		{
-			fileEntry.file(expl_gotFile, expl_fail);
-		}
-
-		function expl_gotFile(file)
-		{
-			expl_readDataUrl(file);
-			expl_readAsText(file);
-		}
-
-		function expl_readDataUrl(file)
-		{
-			var reader = new FileReader();
-			reader.onloadend = function(evt) {
-				trace("Read as data URL");
-				trace(evt.target.result);
-			};
-			reader.readAsDataURL(file);
-		}
-
-		function expl_readAsText(file)
-		{
-			var reader = new FileReader();
-			reader.onloadend = function(evt) {
-				trace("Read as text");
-				trace(evt.target.result);
-			};
-			reader.readAsText(file);
-		}
-
-		function expl_fail(evt) { trace( evt.target.error.code ); }
 
 	/* TODO
 	 * Play
 	 * - fights
 	 * - items use/drop from inventory
-	 * - masquer le champ alea quand non utilisé
+	 * - hide alea field when unused
 	 * - permanent links : as items effect (map shows image, spellbook show text, hints are item- or tag-activated links)
 	 * - test item action for buying/selling
 	 * - add powers (Lone wolf, MORT) as an inventory slot (size limits number)
 	 * - automatic testing for conditions ( 0 stamina -> 14, 60, generic death section )
 	 * - complete rules encoding in book ?
 
+	 * Interface
+	 * - merge booklists
+	 * - in booklists, filter by collection / authors
+	 * - add a cleanup of unused media when deleting a book
+
 	 * Edition
 	 * - fix editing (rename/add/remove section)
 	 * - change book storing to a random ID
 	 * - compare book to online version
+	 
+	 * Ability do download media packs separatly
 	 */
 
 		var page;
 		var bookCurrent;
+		var bookCurrentId;
 		var bookCurrentText;
 		var bookCurrentTextList;
 		var bookCurrentMediaList;
@@ -121,7 +57,6 @@
 		var stateTmp = {};		// data cleared upon entering a new paragraph. Holds last roll, fight state, etc...
 
 		var isClientMobile = 0;
-		var clickEvent;			// will be 'touchstart' or 'click', depending of isClientMobile
 
 		var downloadProgressWidth = 200;
 		var inputPadding = 0;
@@ -263,6 +198,14 @@
 		}
 		var i18n = {};
 
+		function loaded()
+		{
+			if( window.PhoneGap )
+				document.addEventListener( 'deviceready', start, false);
+			else
+				start();
+		}
+
 		function start()
 		{
 			var uagent = navigator.userAgent.toLowerCase();
@@ -270,19 +213,23 @@
 						  || uagent.search( 'iphone' ) > -1
 						  || uagent.search( 'ipod' ) > -1;
 			isClientMobile = 1;
-			clickEvent = /*isClientMobile ? 'touchstart' :*/ 'click';
 			clientCheck();
 
 			// select IndexedDB if present, else use LocalStorage
-			if( hasIndexedDB() )
+/*			if( hasWebSQL() )
+			{
+				loadJS( 'storageWebSQL' );
+				Storage = BookWebSQL;
+			}
+			else*/ if( hasIndexedDB() )
 			{
 				loadJS( 'idb' );
-				loadJS( 'storageDb' );
-				Storage = BookDb;
+				loadJS( 'storageIndexedDB' );
+				Storage = BookIndexedDB;
 			}
 			else
 			{
-				Storage = BookLs;
+				Storage = BookLocalStorage;
 			}
 			//trace( 'using ' + Storage.type );
 
@@ -318,13 +265,13 @@
 				case 'title':
 						updateTitleBar( 'Gamebooks' );
 						str += '<input type="button" value="See local library" id="btnlocalLibrary"> ';
-						addSetupEvent( 'btnlocalLibrary', clickEvent, goToLocalBookList );
+						addSetupEvent( 'btnlocalLibrary', 'click', goToLocalBookList );
 						break;
 
 				case 'settings':
 						updateTitleBar( 'Gamebooks : settings' );
 						str += '<input type="button" id="btnback" value="Back to local library">';
-						addSetupEvent( 'btnback', clickEvent, goToLocalBookList );
+						addSetupEvent( 'btnback', 'click', goToLocalBookList );
 
 						str += '<br><br><input type="checkbox" id="chk_onlineShowall"' + ( settings.onlineShowall ? ' checked="checked"' : '' ) + '> Show all online books';
 						addSetupEvent( 'chk_onlineShowall', 'change', function(){ settings.onlineShowall = this.checked; Storage.saveSettings( settings ); } );
@@ -339,46 +286,46 @@
 
 						str += '<br><br>';
 						str += '<input type="button" value="Reset settings" id="btnresetSettings">';
-						addSetupEvent( 'btnresetSettings', clickEvent, function(){ settings = settingsDefault; Storage.saveSettings( settings ); displayPage( 'settings' ); });
+						addSetupEvent( 'btnresetSettings', 'click', function(){ settings = settingsDefault; Storage.saveSettings( settings ); displayPage( 'settings' ); });
 						str += '<input type="button" value="Clear local content" id="btnclearAllLocal">';
-						addSetupEvent( 'btnclearAllLocal', clickEvent, function(){ Storage.clearAll( function(){ Storage.saveSettings( settings ); displayPage( 'settings' ); }); });
+						addSetupEvent( 'btnclearAllLocal', 'click', function(){ Storage.clearAll( function(){ Storage.saveSettings( settings ); displayPage( 'settings' ); }); });
 						break;
 
 				case 'localBookList':
 						updateTitleBar( 'Gamebooks : local books' );
 						str += '<input type="button" value="Get more books online" id="btngetOnlineBooklist"> ';
-						addSetupEvent( 'btngetOnlineBooklist', clickEvent, goToPage, { page:'onlineBookList' } );
+						addSetupEvent( 'btngetOnlineBooklist', 'click', goToPage, { page:'onlineBookList' } );
 						str += '<input type="button" value="Settings" id="btnsettings"> ';
-						addSetupEvent( 'btnsettings', clickEvent, goToPage, { page:'settings' } );
+						addSetupEvent( 'btnsettings', 'click', goToPage, { page:'settings' } );
 						var books = objKeys( localBooks );
 						if( books.length > 0 )
 						{
 							books.sort( function( a,b ) { return cmpobj( localBooks[a], localBooks[b], [ 'collection','collectionNb','title' ] ); } );
 
 							str += '<table id="booklist">';
-							books.forEach( function( title, i ){
-								var bookdata = localBooks[ title ];
+							books.forEach( function( bookid, i ){
+								var bookdata = localBooks[ bookid ];
 								str += '<tr><td id="book_'+ i + '">';
-								str += '<strong>' + title + '</strong><br><small>';
+								str += '<strong>' + bookdata.title + '</strong><br><small>';
 								if( bookdata.collection ) str += bookdata.collection + ' / ' + bookdata.collectionNb + ' / ';
 								str += bookdata.author + '</small>';
 								str += '</td></tr>';
-								addSetupEvent( 'book_'+ i, clickEvent, selectBook, { title:title } );
+								addSetupEvent( 'book_'+ i, 'click', selectBook, { bookid:bookid } );
 							});
 							str += '</table>';
 						}
 						str += '<input type="button" value="Create book" id="btnnewBook"> ';
-						addSetupEvent( 'btnnewBook', clickEvent, newBook );
+						addSetupEvent( 'btnnewBook', 'click', newBook );
 						break;
 
 				case 'onlineBookList':
 						updateTitleBar( 'Gamebooks : online books' );
 						str += '<input type="button" id="btnback" value="Back to local library">';
-						addSetupEvent( 'btnback', clickEvent, goToLocalBookList );
+						addSetupEvent( 'btnback', 'click', goToLocalBookList );
 						str += '<input type="button" id="btnupdate" value="Force update">';
-						addSetupEvent( 'btnupdate', clickEvent, updateOnlineBooklist );
+						addSetupEvent( 'btnupdate', 'click', updateOnlineBooklist );
 						//str += '<input type="button" id="btnshowall" value="' + ( settings.onlineShowall ? 'Only new' : 'Show all' ) + '">';
-						//addSetupEvent( 'btnshowall', clickEvent, function(){ settings.onlineShowall = !settings.onlineShowall; displayPage( 'onlineBookList' ); });
+						//addSetupEvent( 'btnshowall', 'click', function(){ settings.onlineShowall = !settings.onlineShowall; displayPage( 'onlineBookList' ); });
 
 						var books = objKeys( onlineBooks );
 						if( books.length == 0 )
@@ -389,19 +336,20 @@
 						{
 							str += '<table id="booklist">';
 							books.sort( function( a,b ) { return cmpobj( onlineBooks[a], onlineBooks[b], [ 'collection', 'collectionNb', 'title' ] ); } );
-							books.forEach( function( title, i ){
-								var bookdata = onlineBooks[ title ];
-								if( !localBooks[ title ] || settings.onlineShowall )
+							books.forEach( function( bookid, i ){
+								var bookdata = onlineBooks[ bookid ];
+								var haslocal = localBooks[ bookid ] != undefined;
+								if( !haslocal || settings.onlineShowall )
 								{
-									str += '<tr id="book_' + i + '"><td' + ( localBooks[ title ] ? ' class="alreadyhave"' : ' id="getbook_' + i + '"' ) + '>';
-									str += '<strong>' + title + '</strong><br><small>';
+									str += '<tr id="book_' + i + '"><td' + ( haslocal ? ' class="alreadyhave"' : ' id="getbook_' + i + '"' ) + '>';
+									str += '<strong>' + bookdata.title + '</strong><br><small>';
 									if( bookdata.collection )
 										str += bookdata.collection + ' / ' + bookdata.collectionNb + ' / ';
 									str += bookdata.author + '</small>';
-									if( !localBooks[ title ] )
+									if( !haslocal )
 									{
 										str += '<br><span id="progress_' + i + '"></span>';
-										addSetupEvent( 'getbook_' + i, clickEvent, getBook, { title:title, id:i, progress:'progress_' + i, finished:function( progress ){
+										addSetupEvent( 'getbook_' + i, 'click', getBook, { bookid:bookid, id:i, progress:'progress_' + i, finished:function( progress ){
 											if( settings.onlineShowall )
 											{
 												progress.parentNode.className = 'alreadyhave';
@@ -424,7 +372,7 @@
 				case 'booktitle':
 						updateTitleBar( bookCurrent.title );
 						str += '<input type="button" id="btnback" value="Back to local library">';
-						addSetupEvent( 'btnback', clickEvent, goToLocalBookList );
+						addSetupEvent( 'btnback', 'click', goToLocalBookList );
 
 						str += '<table id="booktitle">';
 						str += '<tr><td colspan="2" class="center"><strong>' + bookCurrent.title + '</strong>' + ( bookCurrent.firsttitle ? '<br><small>( ' + bookCurrent.firsttitle + ' )</small>' : '' ) + '</td></tr>';
@@ -439,30 +387,30 @@
 						str += '</table>';
 
 						str += '<input type="button" id="btnread" value="Read">';
-						addSetupEvent( 'btnread', clickEvent, goToPage, { page:'bookread' } );
+						addSetupEvent( 'btnread', 'click', goToPage, { page:'bookread' } );
 						str += '<input type="button" id="btnedit" value="Edit">';
-						addSetupEvent( 'btnedit', clickEvent, editBook );
+						addSetupEvent( 'btnedit', 'click', editBook );
 						str += '<input type="button" id="btnremove" value="Delete">';
-						addSetupEvent( 'btnremove', clickEvent, deleteBook );
+						addSetupEvent( 'btnremove', 'click', deleteBook );
 						str += '<input type="button" id="btnremovesave" value="Delete Save">';
-						addSetupEvent( 'btnremovesave', clickEvent, saveDelete );
+						addSetupEvent( 'btnremovesave', 'click', saveDelete );
 
-						// delete ONLINE version of the book, only show if the 'id' field is set (meaning there IS an online version)
-						if( bookCurrent.id )
+						// delete local and ONLINE version of the book, only show if we are the owner of the book
+						if( false ) // !!! owner test
 						{
 							str += '<input type="button" value="Delete Online" id="delonlinebook">';
-							addSetupEvent( 'delonlinebook', clickEvent, delOnlineBook );
+							addSetupEvent( 'delonlinebook', 'click', delOnlineBook );
 						}
 
 						if( true || bookCurrent.modified )	// !!! waiting for 'modified' field management
 						{
 							//str += '<br>';
 							//str += '<input type="button" id="btnupload" value="Upload">';
-							//addSetupEvent( 'btnupload', clickEvent, uploadBook );
+							//addSetupEvent( 'btnupload', 'click', uploadBook );
 							//str += '<input type="button" id="btnsolve" value="Solve">';
-							//addSetupEvent( 'btnsolve', clickEvent, solveBook );
-							str += '<input type="button" id="btnorphans" value="Check">';
-							addSetupEvent( 'btnorphans', clickEvent, checkBook );
+							//addSetupEvent( 'btnsolve', 'click', solveBook );
+							str += '<input type="button" id="btncheck" value="Check">';
+							addSetupEvent( 'btncheck', 'click', checkBook );
 						}
 						break;
 
@@ -474,16 +422,16 @@
 				case 'bookedit':
 						updateTitleBar( 'Gamebooks : ' + bookCurrent.title );
 						str += '<input type="button" id="btnback" value="Back to book details">';
-						addSetupEvent( 'btnback', clickEvent, goToPage, { page:'booktitle' } );
+						addSetupEvent( 'btnback', 'click', goToPage, { page:'booktitle' } );
 						str += '<table id="edit">';
 						str += '<tr><td class="bookparagraphs">Book properties<br>';
 						str += '<table id="bookprops">';
-						str += '<tr><td class="what">Title</td><td>' + addChangeable( bookCurrent.title, 20, 1, 1, renameBook ) + '</td></tr>';
-						str += '<tr><td class="what">Collection</td><td>' + addChangeable( bookCurrent.collection, 20, 1, 2, updateBook, { 'field':'collection' } ) + '</td></tr>';
-						str += '<tr><td class="what">Collection Nb</td><td>' + addChangeable( bookCurrent.collectionNb, 20, 1, 3, updateBook, { 'field':'collectionNb' } ) + '</td></tr>';
-						str += '<tr><td class="what">Ruleset</td><td>' + addChangeable( bookCurrent.ruletype, 20, 1, 4, updateBook, { 'field':'ruletype' } ) + '</td></tr>';
-						str += '<tr><td class="what">Author</td><td>' + addChangeable( bookCurrent.author, 20, 1, 5, updateBook, { 'field':'author' } ) + '</td></tr>';
-						str += '<tr><td class="what">Date</td><td>' + addChangeable( bookCurrent.date, 20, 1, 6, updateBook, { 'field':'date' } ) + '</td></tr>';
+						str += '<tr><td class="what">Title</td><td>' + addChangeable( bookCurrent.title, 20, 1, 1, updateBook, { field:'title' } ) + '</td></tr>';
+						str += '<tr><td class="what">Collection</td><td>' + addChangeable( bookCurrent.collection, 20, 1, 2, updateBook, { field:'collection' } ) + '</td></tr>';
+						str += '<tr><td class="what">Collection Nb</td><td>' + addChangeable( bookCurrent.collectionNb, 20, 1, 3, updateBook, { field:'collectionNb' } ) + '</td></tr>';
+						str += '<tr><td class="what">Ruleset</td><td>' + addChangeable( bookCurrent.ruletype, 20, 1, 4, updateBook, { field:'ruletype' } ) + '</td></tr>';
+						str += '<tr><td class="what">Author</td><td>' + addChangeable( bookCurrent.author, 20, 1, 5, updateBook, { field:'author' } ) + '</td></tr>';
+						str += '<tr><td class="what">Date</td><td>' + addChangeable( bookCurrent.date, 20, 1, 6, updateBook, { field:'date' } ) + '</td></tr>';
 						str += '</table></td>';
 						str += '<td rowspan="2" id="paragraph"></td></tr>';
 						str += '<tr><td id="parlist"></td></tr>';
@@ -512,7 +460,7 @@
 
 		function goToLocalBookList( event )
 		{
-			if( event ) event.preventDefault();
+			if( event && event.type ) event.preventDefault();
 
 			bookCurrent = null;
 			Storage.getBookList( function( list ){
@@ -528,13 +476,13 @@
 			onlineBooks = {};
 			displayPage( 'onlineBookList' );
 
-			getOnlineBooklist( event.shiftKey );
+			getOnlineBooklist();
 		}
 
-		function getOnlineBooklist( update )
+		function getOnlineBooklist()
 		{
 			var req = createRequest();
-			var reqargs = { 'cmd': update ? 'booklistupdated' : 'booklist' };
+			var reqargs = { cmd:'list-get' };
 			sendRequestGET( req, libraryService, argsGET( reqargs ), function(){
 				var data = checkResp( req );
 				if( data )
@@ -549,17 +497,21 @@
 
 		function getBook()
 		{
-			this.removeEventListener( clickEvent, getBook, false );
+			this.removeEventListener( 'click', getBook, false );
 
 			$( this.args.progress ).innerHTML = '<img src="circleball.gif">';
-			var title = this.args.title;
+			var bookid = this.args.bookid;
 
+			var fileNb = onlineBooks[ bookid ].mediaNb + 1;
+			var fileGot = 0;
+			var progressOuter;
+			var progressInner;
 			var req = createRequest();
 			req.dataSize = 0;
 			req.id = this.args.id;
 			req.finished = this.args.finished;
 			req.progress = this.args.progress;
-			var reqargs = { 'cmd':'getbook', 'bookname': title };
+			var reqargs = { cmd:'book-get', id:bookid };
 			sendRequestGET( req, libraryService, argsGET( reqargs ), function(){
 				switch( this.readyState )
 				{
@@ -568,25 +520,28 @@
 					case 3:		// try to get a-bit-underestimated size from the first chunk
 								if( this.dataSize == 0 )
 								{
-									var capt;
-									if( capt = /"size":(\d+),/.exec( this.responseText ) )
+									var capt = /"size":(\d+),/.exec( this.responseText );
+									if( fileNb > 1 || capt )
 									{
-										this.dataSize = parseInt( capt[1] );
 										$( this.progress ).innerHTML = '<span class="progressOuter" id="progressOuter_' + this.id + '"><span class="progressInner" id="progressInner_' + this.id + '">&nbsp;</span></span>';
-										$( 'progressOuter_' + this.id ).style.width = downloadProgressWidth + 'px';
-										$( 'progressInner_' + this.id ).style.width = 0 + 'px';
+										progressOuter = $( 'progressOuter_' + this.id );
+										progressInner = $( 'progressInner_' + this.id );
+										progressOuter.style.width = downloadProgressWidth + 'px';
+										progressInner.style.width = 0 + 'px';
+
+										this.dataSize = parseInt( capt[1] );
 									}
 									else
 									{
-										// definitly leave the circling animation
+										// definitively leave the circling animation
 										this.dataSize = -1;
 									}
 								}
 								if( this.dataSize > 0 )
 								{
-									var width = Math.round( downloadProgressWidth * this.responseText.length / this.dataSize );
-									$( 'progressOuter_' + this.id ).style.paddingRight = ( downloadProgressWidth - width ) + 'px';
-									$( 'progressInner_' + this.id ).style.paddingRight = width + 'px';
+									var width = Math.round( downloadProgressWidth * this.responseText.length / this.dataSize / fileNb );
+									progressOuter.style.paddingRight = ( downloadProgressWidth - width ) + 'px';
+									progressInner.style.paddingRight = width + 'px';
 								}
 								break;
 
@@ -595,9 +550,60 @@
 								var cb = this.finished;
 								if( data )
 								{
-									Storage.addBook( data.book, function(){
-										localBooks[ data.book.title ] = data.book;	// only the main data remain, Storage.addBook has removed media and text
-										if( cb ) cb( item );
+									Storage.addBook( bookid, data.book, function(){
+										localBooks[ bookid ] = data.book;	// only the main data remain, Storage.addBook has removed media and text
+										fileGot = 1;
+
+										if( fileNb > 1 )
+										{
+											localBooks[ bookid ].notfinished = true
+
+											var width = Math.round( downloadProgressWidth / fileNb );
+											progressOuter.style.paddingRight = ( downloadProgressWidth - width ) + 'px';
+											progressInner.style.paddingRight = width + 'px';
+
+											// now get medias in parallel
+											data.book.mediaList.forEach( function( mediaId ){
+												Storage.testMedia( mediaId, function( hasIt ) {
+													if( hasIt )
+													{
+														fileGot++;
+
+														var width = Math.round( downloadProgressWidth * fileGot / fileNb );
+														progressOuter.style.paddingRight = ( downloadProgressWidth - width ) + 'px';
+														progressInner.style.paddingRight = width + 'px';
+
+														if( fileGot == fileNb && cb )
+															cb( item );
+													}
+													else
+													{
+														var req = createRequest();
+														req.mediaId = mediaId;
+														var reqargs = { cmd:'media-get', id:mediaId };
+														sendRequestGET( req, libraryService, argsGET( reqargs ), function(){
+															var data = checkResp( this );
+															if( data )
+															{
+																fileGot++;
+
+																var width = Math.round( downloadProgressWidth * fileGot / fileNb );
+																progressOuter.style.paddingRight = ( downloadProgressWidth - width ) + 'px';
+																progressInner.style.paddingRight = width + 'px';
+																
+																// storage add media
+																Storage.addMedia( this.mediaId, data.media );
+
+																if( fileGot == fileNb && cb )
+																	cb( item );
+															}
+														});
+													}
+												});
+											});;
+										}
+										else
+											if( cb ) cb( item );
 									});
 								}
 								break;
@@ -607,7 +613,8 @@
 
 		function selectBook()
 		{
-			bookCurrent = localBooks[ this.args.title ];
+			bookCurrentId = this.args.bookid;
+			bookCurrent = localBooks[ bookCurrentId ];
 			if( bookCurrent )
 				displayPage( 'booktitle' );
 			else
@@ -627,7 +634,7 @@
 			bookCurrent.rules = deepCopy( ruletypes[ bookCurrent.ruletype ] );
 
 			// try to find a saved game. If not found, create a blank state.
-			Storage.loadState( bookCurrent.title, function( data ){
+			Storage.loadState( bookCurrentId, function( data ){
 				if( data )
 				{
 					states = data.states;
@@ -637,6 +644,7 @@
 				else
 				{
 					initBookState();
+					states = [];
 					states.unshift( deepCopy( stateCurrent ) );
 					stateTmp = { actions:[] };
 				}
@@ -676,12 +684,12 @@
 
 		function deleteBook()
 		{
-			Storage.delBook( bookCurrent.title, goToLocalBookList );
+			Storage.delBook( bookCurrentId, goToLocalBookList );
 		}
 
 		function saveRead()
 		{
-			Storage.saveState( bookCurrent.title, { states:states, current:stateCurrent, tmp:stateTmp }, function(){
+			Storage.saveState( bookCurrentId, { states:states, current:stateCurrent, tmp:stateTmp }, function(){
 				// clear all state data and return to book title
 				states = [];
 				stateCurrent = {};
@@ -692,7 +700,7 @@
 
 		function saveDelete()
 		{
-			Storage.removeState( bookCurrent.title );
+			Storage.removeState( bookCurrentId );
 		}
 
 		function changeParRead( target )
@@ -707,7 +715,7 @@
 		function refreshParRead()
 		{
 			var parname = stateCurrent.paragraph;
-			Storage.getText( bookCurrent.title, parname, function( par ){
+			Storage.getText( bookCurrentId, parname, function( par ){
 				if( par )
 				{
 					bookCurrentText = par;
@@ -749,18 +757,18 @@
 			var header = '<table id="header"><tr><td>';
 
 			header += '<input type="button" id="btnInv" value="Items">';
-			addSetupEvent( 'btnInv', clickEvent, toggleInventory );
+			addSetupEvent( 'btnInv', 'click', toggleInventory );
 
 			// Back button, only according to settings
 			if( settings.enableBack )
 			{
 				header += '<input type="button" id="btnbackPar" value="Back">';
-				addSetupEvent( 'btnbackPar', clickEvent, backParRead );
+				addSetupEvent( 'btnbackPar', 'click', backParRead );
 			}
 			header += '<input type="button" id="btnSave" value="Save">';
-			addSetupEvent( 'btnSave', clickEvent, saveRead );
+			addSetupEvent( 'btnSave', 'click', saveRead );
 			header += '<input type="button" id="btnQuit" value="Quit">';
-			addSetupEvent( 'btnQuit', clickEvent, goToPage, { page:'booktitle' } );
+			addSetupEvent( 'btnQuit', 'click', goToPage, { page:'booktitle' } );
 
 			header += '</td></tr><tr><td>';
 			header += '<table class="white" id="stats"></table>';
@@ -795,32 +803,32 @@
 					case 'link':	// ( text, condition, section_id ){link:rendez-vous au 34::34}
 									// - section_id can be 'back'
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, clickEvent, action_go, els[2] );
+									addSetupEvent( actionId, 'click', action_go, els[2] );
 									stateTmp.actions.push( { id:actionId, cond:els[1], style:'turnto' } );
 									id++;
 									break;
 					case 'luck':	// ( text )
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, clickEvent, action_luck );
+									addSetupEvent( actionId, 'click', action_luck );
 									stateTmp.actions.push( { id:actionId, cond:'!tmp.luckTest', style:'luck' } );
 									id++;
 									break;
 					case 'skill':	// ( text )
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, clickEvent, action_skill );
+									addSetupEvent( actionId, 'click', action_skill );
 									stateTmp.actions.push( { id:actionId, cond:'!tmp.skillTest', style:'skill' } );
 									id++;
 									break;
 					case 'roll':	// ( text, '', type )
 									// - type is a list of dices to roll, separated by ;  e.g., '6;6', '9'
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, clickEvent, action_roll, els[2] );
+									addSetupEvent( actionId, 'click', action_roll, els[2] );
 									stateTmp.actions.push( { id:actionId, cond:'!tmp.roll', style:'roll' } );
 									id++;
 									break;
 					case 'var':		// ( text, condition, path, action )
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, clickEvent, action_var, els.slice(2) );
+									addSetupEvent( actionId, 'click', action_var, els.slice(2) );
 									stateTmp.actions.push( { id:actionId, cond:els[1], style:'var' } );
 									id++;
 									break;
@@ -829,14 +837,14 @@
 									// - price_type is the name of another item, for exchanges
 									// - quantities are 1 by default
 									repl = '<span id="' + actionId + '">' + els[0] + '</span>';
-									addSetupEvent( actionId, clickEvent, action_item, els.slice(2) );
+									addSetupEvent( actionId, 'click', action_item, els.slice(2) );
 									stateTmp.actions.push( { id:actionId, cond:els[1], style:'item' } );
 									id++;
 									break;
 					case 'img':		// ( image_name )
 									var mid = mediacount++;
 									repl = '<div class="img"><img id="media_' + mid + '" src=""></div>';
-									Storage.getMedia( bookCurrent.title, els[0], function( media ){
+									Storage.getMedia( els[0], function( media ){
 										var item = $( 'media_' + mid );
 										if( item ) item.src = 'data:' + media.type + ';base64,' + media.data;
 									});
@@ -845,14 +853,14 @@
 					case 'b':		repl = '<b>' + els.join(':') + '</b>'; break;
 					case 'i':		repl = '<i>' + els.join(':') + '</i>'; break;
 					case 's':		repl = '<sup>' + els.join(':') + '</sup>'; break;
-					case 'br':		repl = '<br><br>'; break;
+					case 'br':		repl = '</p><p>'; break;
 					default:		repl = '<b>UNKOWN META</b>'; break;
 				}
 				text = text.replace( fullstr, repl );
 			}
 			window.scroll( 0, 0 );
 
-			$( 'content' ).innerHTML = header + '<div id="text">' + text + '</div><br><br>';
+			$( 'content' ).innerHTML = header + '<div id="text"><p>' + text + '</p></div><br><br>';
 
 			execSetups();
 
@@ -1348,47 +1356,36 @@
 			if( confirm( 'Please confirm the deletion of the book : "' + bookCurrent.title + '"' ) )
 			{
 				var req = createRequest();
-				var reqargs = { 'cmd':'book', 'act':'delete', 'bookid': bookCurrent.id };
+				var reqargs = { cmd:'book-delete', id:bookCurrentId };
 				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 				var data = checkResp( req );
 				if( data )
 					displayPage( 'booktitle' );
+				// !!! Should also remove the local book
 			}
 		}
 
-		function renameBook()	// !!! need update
-		{
-			trace( "Cannot rename a book for now, as the name is the main key" );
-			return;
-			var title = this.value;
-			if( title != book.title )
-			{
-				var req = createRequest();
-				var reqargs = { 'cmd':'book', 'act':'rename', 'bookname':book.title, 'newbookname':title };
-				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
-				var data = checkResp( req );
-				if( data )
-					book.title = title;
-			}
-		}
-
-		function updateBook( args )	/// !!! need update
+		function updateBook( args )
 		{
 			var value = this.value;
 			var field = args.field;
 
 			if( value != bookCurrent[ field ] )
 			{
-				bookCurrent[ field ] = value;
-				bookCurrent.lastUpadte = getTime();
-				bookCurrent.modified = true;
+				var req = createRequest();
+				var reqargs = { cmd:'book-update', id:bookCurrentId };
+				reqargs[ field ] = value;
+				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
+				var data = checkResp( req );
+				if( data )
+					bookCurrent[ field ] = value;
 			}
 		}
 
 		// build a JSON version of the book and sends it online (just trace it for now)
 		function uploadBook()
 		{
-			Storage.serializeBook( bookCurrent.title, true, function( book ){
+			Storage.serializeBook( bookCurrentId, function( book ){
 				trace( JSON.stringify( book ) );
 			});
 		}
@@ -1396,7 +1393,7 @@
 		// tries to find a solution for the book
 		function solveBook()
 		{
-			mapBook( bookCurrent.title, function( map ){
+			mapBook( bookCurrentId, function( map ){
 				/*var first = 'intro';
 				var last = 0;
 				objKeys( map ).forEach( function(id){
@@ -1414,7 +1411,7 @@
 		// list the sections no-one points to
 		function checkBook()
 		{
-			mapBook( bookCurrent.title, function( map ){
+			mapBook( bookCurrentId, function( map ){
 
 				// trace( JSON.stringify( map ) );
 
@@ -1449,17 +1446,17 @@
 						if( item.add && !item.test ) trace( 'Item unused: ' + itemname + ' is added but never checked : ' + JSON.stringify( item ) );
 					});
 				}
-				trace( 'Check completed\n' );
+				trace( 'Check completed' );
 			});
 		}
 
 		// generate a functional representation of the book, with links, backlinks, tag and item references
-		function mapBook( title, cb )
+		function mapBook( bookid, cb )
 		{
-			Storage.serializeBook( title, false, function( book ){
+			Storage.serializeBook( bookid, function( book ){
 				var map = { text:{} };
 
-				var tagtest = new RegExp(  '\\btag\\.([^:}\)\|*]+)' );
+				var tagtest = new RegExp(  '\\btag\\.([^:{}\)\|*]+)' );
 				var itemtest = new RegExp( '\\binv\\.([^.]+)\\.([^.:}\)\|*]+)' );
 
 				var tagchange = new RegExp(   '\\btag:[^:]*:[^:]*:(add|del):([^:}]+)' );
@@ -1601,7 +1598,7 @@
 		function refreshParEdit()
 		{
 			var parname = states[0];
-			Storage.getText( bookCurrent.title, parname, function( par ){
+			Storage.getText( bookCurrentId, parname, function( par ){
 				if( par )
 				{
 					bookCurrentText = par;
@@ -1626,25 +1623,26 @@
 		}
 
 		function newBook()	// books are now created locally first, and eventually uploaded
+		// !!! False: Books are immediatly created online with intial name and author
 		{
 			var title = prompt( "Please enter the new book name" );
 			if( title != '' )
 			{
 				var newbook = { title:title, collection:'', collectionNb:'', author:'', ruletype:'', date:'', media:{}, text:{ intro:{ order:0,text:'this is the introduction' } } };
-				Storage.addBook( newbook, goToLocalBookList );
+				Storage.addBook( bookCurrentId, newbook, goToLocalBookList );
 			}
 		}
 
 		function refreshParList()
 		{
-			Storage.getTextList( bookCurrent.title, function( parlist ) {
+			Storage.getTextList( bookCurrentId, function( parlist ) {
 				resetSetups();
 				var str = '<p>Paragraph list</p><ul>';
 
 				parlist.sort();
 				parlist.forEach( function( par, i ){
 					str += '<li id="par_' + i + '">' + par + '</li>';
-					addSetupEvent( 'par_' + i, clickEvent, changeParEdit, { 'target':par } );
+					addSetupEvent( 'par_' + i, 'click', changeParEdit, { 'target':par } );
 				});
 				str += '</ul>';
 
@@ -1659,18 +1657,18 @@
 			var parname = states[0];
 
 			var str = '<p><input type="button" value="<< Back" id="btnbackPar">';
-			addSetupEvent( 'btnbackPar', clickEvent, backParEdit );
+			addSetupEvent( 'btnbackPar', 'click', backParEdit );
 			str += '<input type="button" value="Add new section" id="btnaddnewpar">';
-			addSetupEvent( 'btnaddnewpar', clickEvent, addNewPar );
+			addSetupEvent( 'btnaddnewpar', 'click', addNewPar );
 			str += '<input type="button" value="Delete section" id="btndelpar"></p>';
-			addSetupEvent( 'btndelpar', clickEvent, delPar );
+			addSetupEvent( 'btndelpar', 'click', delPar );
 
 			str += '<p>Section name: ' + addChangeable( parname, 20, 2, 1, renamePar ) + '</p>';
 			str += '<p><textarea rows="12" cols="80" id="par_text">' + bookCurrentText.text + '</textarea><br><input type="button" value="Save" id="submittext"></p>';
 
 			// !!! display a list of links to the sections linked in the text
 
-			addSetupEvent( 'submittext', clickEvent, updateParText );
+			addSetupEvent( 'submittext', 'click', updateParText );
 
 			$( 'paragraph' ).innerHTML = str;
 			execSetups();
@@ -1682,8 +1680,8 @@
 			if( ! book.text[ defaultParagraphName ] )
 			{
 				var req = createRequest();
-				var reqargs = { 'cmd':'paragraph', 'act':'create', 'bookname':book.title, 'parname':defaultParagraphName, 'text':defaultParagraphText };
-				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
+				//var reqargs = { 'cmd':'paragraph', 'act':'create', 'bookname':book.title, 'parname':defaultParagraphName, 'text':defaultParagraphText };
+				//sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 				var data = checkResp( req );
 				if( data )
 				{
@@ -1709,7 +1707,7 @@
 			{
 				if( confirm( 'Please confirm the deletion of the paragraph : "' + parname + '"' ) )
 				{
-					Storage.removeText( bookCurrent.title, parname, function()
+					Storage.removeText( bookCurrentId, parname, function()
 					{
 						// clean the paragraph history
 						states = states.filter( function( val ) { return val.paragraph != parname } );
@@ -1734,8 +1732,8 @@
 			if( newparname != parname )
 			{
 				var req = createRequest();
-				var reqargs = { 'cmd':'paragraph', 'act':'rename', 'bookname':book.title, 'parname':parname, 'newparname':newparname };
-				sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
+				//var reqargs = { 'cmd':'paragraph', 'act':'rename', 'bookname':book.title, 'parname':parname, 'newparname':newparname };
+				//sendRequestPOST( req, libraryService, argsPOST( reqargs ) );
 				var data = checkResp( req );
 				if( data )
 				{
@@ -1758,7 +1756,7 @@
 			if( bookCurrentText.text != text )
 			{
 				bookCurrentText.text = text;
-				Storage.updateText( bookCurrent.title, states[0], bookCurrentText, refreshParEdit );
+				Storage.updateText( bookCurrentId, states[0], bookCurrentText, refreshParEdit );
 			}
 		}
 
@@ -1968,13 +1966,8 @@
 	</style>
 </head>
 
-<body onload='expl_onLoad()'>
+<body onload='loaded()'>
 	<div id='title_bar'></div>
 	<div id='content'></div>
-
-	<h1>Example</h1>
-	<p onclick='expl_click()'>Read File</p>
-	<pre id='out'></pre>
 </body>
-
 </html>
