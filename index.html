@@ -580,6 +580,7 @@
 													{
 														var req = createRequest();
 														req.mediaId = mediaId;
+														req.cb = cb;
 														var reqargs = { cmd:'media-get', id:mediaId };
 														sendRequestGET( req, libraryService, argsGET( reqargs ), function(){
 															var data = checkResp( this );
@@ -594,8 +595,8 @@
 																// storage add media
 																Storage.addMedia( this.mediaId, data.media );
 
-																if( fileGot == fileNb && cb )
-																	cb( item );
+																if( fileGot == fileNb && this.cb )
+																	this.cb( item );
 															}
 														});
 													}
