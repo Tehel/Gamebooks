@@ -30,8 +30,6 @@
 	 * - fix editing (rename/add/remove section)
 	 * - change book storing to a random ID
 	 * - compare book to online version
-	 
-	 * Ability do download media packs separatly
 	 */
 
 		var page;
@@ -862,7 +860,11 @@
 									repl = '<div class="img"><img id="media_' + mid + '" src=""></div>';
 									Storage.getMedia( els[0], function( media ){
 										var item = $( 'media_' + mid );
-										if( item ) item.src = 'data:' + media.type + ';base64,' + media.data;
+										if( item )
+										{
+											item.src = 'data:' + media.type + ';base64,' + media.data;
+											item.width = Math.min( media.width, window.outerWidth - 20 );
+										}
 									});
 									break;
 					case 'list':	repl = '<ul><li>' + els.join( '</li><li>' ) + '</li></ul>'; break;
@@ -870,6 +872,7 @@
 					case 'i':		repl = '<i>' + els.join(':') + '</i>'; break;
 					case 's':		repl = '<sup>' + els.join(':') + '</sup>'; break;
 					case 'br':		repl = '</p><p>'; break;
+					case 'fight':	repl = '</p><p>Fight: <b>' + els[0] + '</b> Skill:<b>' + els[1] + '</b> Stamina:<b>' + els[2] + '</b></p><p>'; break;
 					default:		repl = '<b>UNKOWN META</b>'; break;
 				}
 				text = text.replace( fullstr, repl );
