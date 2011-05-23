@@ -44,6 +44,7 @@
 		var settings;
 		var settingsDefault = {
 			onlineShowall:false,
+			downloadNumbers:false,
 			enableBack:false,
 			neverHideText:false
 		};
@@ -275,6 +276,9 @@
 
 						str += '<br><br><input type="checkbox" id="chk_onlineShowall"' + ( settings.onlineShowall ? ' checked="checked"' : '' ) + '> Show all online books';
 						addSetupEvent( 'chk_onlineShowall', 'change', function(){ settings.onlineShowall = this.checked; Storage.saveSettings( settings ); } );
+						str += '<br><input type="checkbox" id="chk_downloadNumbers"' + ( settings.downloadNumbers ? ' checked="checked"' : '' ) + '> Numbers instead of progress';
+						addSetupEvent( 'chk_downloadNumbers', 'change', function(){ settings.downloadNumbers = this.checked; Storage.saveSettings( settings ); } );
+						str += '<br>';
 						str += '<br><input type="checkbox" id="chk_enableBack"' + ( settings.enableBack ? ' checked="checked"' : '' ) + '> Enable going back in books';
 						addSetupEvent( 'chk_enableBack', 'change', function(){ settings.enableBack = this.checked; Storage.saveSettings( settings ); } );
 						str += '<br><input type="checkbox" id="chk_neverHideText"' + ( settings.neverHideText ? ' checked="checked"' : '' ) + '> Don\'t hide text when looking at inventory';
@@ -349,7 +353,7 @@
 									if( !haslocal )
 									{
 										str += '<br><span id="progress_' + i + '"></span>';
-										addSetupEvent( 'getbook_' + i, 'click', getBook, { bookid:bookid, id:i, progress:'progress_' + i, finished:function( progress ){
+										addSetupEvent( 'getbook_' + i, 'click', getBook, { bookid:bookid, id:i, progress:'progress_' + i, finishedCb:function( progress ){
 											if( settings.onlineShowall )
 											{
 												progress.parentNode.className = 'alreadyhave';
@@ -502,116 +506,127 @@
 			$( this.args.progress ).innerHTML = '<img src="circleball.gif">';
 			var bookid = this.args.bookid;
 
-			var fileNb = onlineBooks[ bookid ].mediaNb + 1;
-			var fileGot = 0;
-			var progressOuter;
-			var progressInner;
+			var vars = {
+				id: this.args.id,
+				fileNb: onlineBooks[ bookid ].mediaNb + 1,
+				fileGot: 0,
+				dataSize: 0,
+				finishedCb: this.args.finishedCb,
+				progress: $( this.args.progress )
+			};
 			var req = createRequest();
-			req.dataSize = 0;
-			req.id = this.args.id;
-			req.finished = this.args.finished;
-			req.progress = this.args.progress;
 			var reqargs = { cmd:'book-get', id:bookid };
 			sendRequestGET( req, libraryService, argsGET( reqargs ), function(){
 				switch( this.readyState )
 				{
-					case 1:		break;
-					case 2:		break;
-					case 3:		// try to get a-bit-underestimated size from the first chunk
-								if( this.dataSize == 0 )
+					case 1:	break;
+					case 2:	break;
+					case 3:	// try to get a-bit-underestimated size from the first chunk
+							if( vars.dataSize == 0 )
+							{
+								var capt = /"size":(\d+),/.exec( this.responseText );
+								if( vars.fileNb > 1 || capt )
 								{
-									var capt = /"size":(\d+),/.exec( this.responseText );
-									if( fileNb > 1 || capt )
-									{
-										$( this.progress ).innerHTML = '<span class="progressOuter" id="progressOuter_' + this.id + '"><span class="progressInner" id="progressInner_' + this.id + '">&nbsp;</span></span>';
-										progressOuter = $( 'progressOuter_' + this.id );
-										progressInner = $( 'progressInner_' + this.id );
-										progressOuter.style.width = downloadProgressWidth + 'px';
-										progressInner.style.width = 0 + 'px';
+									vars.dataSize = parseInt( capt[1] );
+									progressCreate( vars.progress, vars.id, vars.fileNb == 1 ? vars.dataSize : vars.fileNb, vars.finishedCb );
+								}
+								else
+								{
+									// definitively leave the circling animation
+									vars.dataSize = -1;
+								}
+							}
 
-										this.dataSize = parseInt( capt[1] );
-									}
-									else
-									{
-										// definitively leave the circling animation
-										this.dataSize = -1;
-									}
-								}
-								if( this.dataSize > 0 )
-								{
-									var width = Math.round( downloadProgressWidth * this.responseText.length / this.dataSize / fileNb );
-									progressOuter.style.paddingRight = ( downloadProgressWidth - width ) + 'px';
-									progressInner.style.paddingRight = width + 'px';
-								}
-								break;
+							progressUpdate( vars.progress, vars.fileNb == 1 ? this.responseText.length : this.responseText.length / vars.dataSize );
+							break;
 
 					case 4:		var data = checkResp( this );
-								var item = $( this.progress );
-								var cb = this.finished;
-								if( data )
-								{
-									Storage.addBook( bookid, data.book, function(){
-										localBooks[ bookid ] = data.book;	// only the main data remain, Storage.addBook has removed media and text
-										fileGot = 1;
+							if( data )
+							{
+								Storage.addBook( bookid, data.book, function(){
+									localBooks[ bookid ] = data.book;	// only the main data remain, Storage.addBook has removed text
 
-										if( fileNb > 1 )
-										{
-											localBooks[ bookid ].notfinished = true
+									vars.fileGot = 1;
+									progressUpdate( vars.progress, vars.fileNb == 1 ? vars.dataSize : 1 );
 
-											var width = Math.round( downloadProgressWidth / fileNb );
-											progressOuter.style.paddingRight = ( downloadProgressWidth - width ) + 'px';
-											progressInner.style.paddingRight = width + 'px';
+									if( vars.fileNb > 1 )
+									{
+										localBooks[ bookid ].notfinished = true
 
-											// now get medias in parallel
-											data.book.mediaList.forEach( function( mediaId ){
-												Storage.testMedia( mediaId, function( hasIt ) {
-													if( hasIt )
-													{
-														fileGot++;
+										// now get medias in parallel
+										data.book.mediaList.forEach( function( mediaId ){
+											Storage.testMedia( mediaId, function( hasIt ) {
+												if( hasIt )
+												{
+													vars.fileGot++;
+													progressUpdate( vars.progress, vars.fileGot );
+												}
+												else
+												{
+													var req = createRequest();
+													req.mediaId = mediaId;
+													var reqargs = { cmd:'media-get', id:mediaId };
+													sendRequestGET( req, libraryService, argsGET( reqargs ), function(){
+														var data = checkResp( this );
+														if( data )
+														{
+															Storage.addMedia( this.mediaId, data.media );
 
-														var width = Math.round( downloadProgressWidth * fileGot / fileNb );
-														progressOuter.style.paddingRight = ( downloadProgressWidth - width ) + 'px';
-														progressInner.style.paddingRight = width + 'px';
-
-														if( fileGot == fileNb && cb )
-															cb( item );
-													}
-													else
-													{
-														var req = createRequest();
-														req.mediaId = mediaId;
-														req.cb = cb;
-														var reqargs = { cmd:'media-get', id:mediaId };
-														sendRequestGET( req, libraryService, argsGET( reqargs ), function(){
-															var data = checkResp( this );
-															if( data )
-															{
-																fileGot++;
-
-																var width = Math.round( downloadProgressWidth * fileGot / fileNb );
-																progressOuter.style.paddingRight = ( downloadProgressWidth - width ) + 'px';
-																progressInner.style.paddingRight = width + 'px';
-																
-																// storage add media
-																Storage.addMedia( this.mediaId, data.media );
-
-																if( fileGot == fileNb && this.cb )
-																	this.cb( item );
-															}
-														});
-													}
-												});
-											});;
-										}
-										else
-											if( cb ) cb( item );
-									});
-								}
-								break;
+															vars.fileGot++;
+															progressUpdate( vars.progress, vars.fileGot );
+														}
+													});
+												}
+											});
+										});
+									}
+								});
+							}
+							break;
 				}
 			});
 		}
 
+		function progressCreate( parent, id, max, finishCb )
+		{
+			if( settings.downloadNumbers )
+				parent.innerHTML = '<span id="progressInner_' + id + '">0</span> / <span id="progressOuter' + id + '">' + max + '</span>';
+			else
+				parent.innerHTML = '<span class="progressOuter" id="progressOuter_' + id + '"><span class="progressInner" id="progressInner_' + id + '">&nbsp;</span></span>';
+
+			parent.progressOuter = $( 'progressOuter_' + id );
+			parent.progressInner = $( 'progressInner_' + id );
+			parent.progressMax = max;
+			parent.progressId = id;
+			parent.progressFinish = finishCb;
+
+			if( !settings.downloadNumbers )
+			{
+				parent.progressOuter.style.width = downloadProgressWidth + 'px';
+				parent.progressInner.style.width = 0 + 'px';
+			}
+		}
+		
+		function progressUpdate( parent, current )
+		{
+			if( settings.downloadNumbers )
+			{
+				parent.progressInner.innerHTML = Math.round( current );
+			}
+			else
+			{
+				var width = Math.round( downloadProgressWidth * current / parent.progressMax );
+				parent.progressOuter.style.paddingRight = ( downloadProgressWidth - width ) + 'px';
+				parent.progressInner.style.paddingRight = width + 'px';
+			}
+			
+			if( current >= parent.progressMax && !parent.progressFinished && parent.progressFinish )
+			{
+				parent.progressFinish( parent );
+				parent.progressFinished = 1;
+			}
+		}
+		
 		function selectBook()
 		{
 			bookCurrentId = this.args.bookid;
